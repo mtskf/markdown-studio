@@ -96,7 +96,7 @@ Additional findings from the focused security & supply-chain audit (`docs/securi
 
 ### Strategic option (supersedes per-item server fixes)
 
-- [ ] 🔒 P1: **Remove `betterMarkdown.openInBrowser` command and bundled local server entirely.** Eliminates all dev-server findings (Code Review P0 shell injection + P1 server items + the per-item additions below) in one stroke. Touches: `package.json` (commands), [src/extension.ts:130-193](../src/extension.ts#L130) + [:243](../src/extension.ts#L243) (spawn + CodeLens), [src/provider.ts:271-275](../src/provider.ts#L271) (handler), `server/` (delete dir), [esbuild.js:25-31](../esbuild.js#L25) (serverBuild), `dist/server.js` (artifact), README/CHANGELOG. **Choose between this and per-item server fixes.**
+- [ ] 🚧 🔒 P1: **Remove `betterMarkdown.openInBrowser` command and bundled local server entirely.** <!-- branch: chore/remove-open-in-browser --> Eliminates all dev-server findings (Code Review P0 shell injection + P1 server items + the per-item additions below) in one stroke. Touches: `package.json` (commands), [src/extension.ts:130-193](../src/extension.ts#L130) + [:243](../src/extension.ts#L243) (spawn + CodeLens), [src/provider.ts:271-275](../src/provider.ts#L271) (handler), `server/` (delete dir), [esbuild.js:25-31](../esbuild.js#L25) (serverBuild), `dist/server.js` (artifact), README/CHANGELOG. **Choose between this and per-item server fixes.**
 
 ### Extension-side hardening (independent of openInBrowser decision)
 
