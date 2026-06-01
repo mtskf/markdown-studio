@@ -21,16 +21,7 @@ const extensionBuild = esbuild.build({
   external: ["vscode"],
 });
 
-// 2. Server build (Node/CJS, bundled so it ships in the VSIX without tsx)
-const serverBuild = esbuild.build({
-  ...commonOptions,
-  entryPoints: ["server/index.ts"],
-  outfile: "dist/server.js",
-  platform: "node",
-  format: "cjs",
-});
-
-// 3. Webview build (browser, ESM with code-splitting so heavy deps like
+// 2. Webview build (browser, ESM with code-splitting so heavy deps like
 // mermaid can be dynamically imported and ship as separate chunks).
 const webviewBuild = esbuild.build({
   ...commonOptions,
@@ -90,7 +81,7 @@ function copyCSS() {
   }
 }
 
-Promise.all([extensionBuild, serverBuild, webviewBuild])
+Promise.all([extensionBuild, webviewBuild])
   .then(() => {
     copyCSS();
     console.log("Build complete.");
@@ -105,13 +96,6 @@ Promise.all([extensionBuild, serverBuild, webviewBuild])
           platform: "node",
           format: "cjs",
           external: ["vscode"],
-        }).then((ctx) => ctx.watch()),
-        esbuild.context({
-          ...commonOptions,
-          entryPoints: ["server/index.ts"],
-          outfile: "dist/server.js",
-          platform: "node",
-          format: "cjs",
         }).then((ctx) => ctx.watch()),
         esbuild.context({
           ...commonOptions,

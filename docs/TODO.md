@@ -94,10 +94,6 @@ Second-pass review focused on refactoring, performance, tests, and type safety (
 
 Additional findings from the focused security & supply-chain audit (`docs/security-audit/2026-06-02-audit.md`). Items already in "Code Review Findings" above are not repeated.
 
-### Strategic option (supersedes per-item server fixes)
-
-- [ ] 🚧 🔒 P1: **Remove `betterMarkdown.openInBrowser` command and bundled local server entirely.** <!-- branch: chore/remove-open-in-browser --> Eliminates all dev-server findings (Code Review P0 shell injection + P1 server items + the per-item additions below) in one stroke. Touches: `package.json` (commands), [src/extension.ts:130-193](../src/extension.ts#L130) + [:243](../src/extension.ts#L243) (spawn + CodeLens), [src/provider.ts:271-275](../src/provider.ts#L271) (handler), `server/` (delete dir), [esbuild.js:25-31](../esbuild.js#L25) (serverBuild), `dist/server.js` (artifact), README/CHANGELOG. **Choose between this and per-item server fixes.**
-
 ### Extension-side hardening (independent of openInBrowser decision)
 
 - [ ] 🔒 P1: `uploadImage` accepts any extension/filename — webview-controlled. Can overwrite `~/.bashrc`, `~/.command` files, etc. via malicious `.md` postMessage. [src/provider.ts:282-309](../src/provider.ts#L282). Fix: whitelist extensions (`png|jpg|jpeg|gif|webp|svg`) + content-hash filenames + size cap.
@@ -129,6 +125,7 @@ Additional findings from the focused security & supply-chain audit (`docs/securi
 
 ## Done
 
+- [x] 🔒 P1: **Remove `betterMarkdown.openInBrowser` command and bundled local server entirely.** Eliminated all dev-server findings (Code Review P0 shell injection + P1 server items + the per-item additions) in one stroke. Touched: `package.json` (commands), `src/extension.ts` (spawn + CodeLens), `src/provider.ts` (handler), `server/` (deleted dir), `esbuild.js` (serverBuild), `dist/server.js` (artifact), README/CHANGELOG.
 - [x] Toggle between rich/source editor (Cmd+Shift+M)
 - [x] Ctrl+F find-in-page with highlighting (CSS Custom Highlight API + mark fallback)
 - [x] h4–h6 headings round-trip natively via Tiptap (earlier metadata-comment workaround removed in a75d719)

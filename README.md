@@ -42,8 +42,6 @@ Open in the Default Editor.
 
 Open in the Rich Editor.
 
-Open in the Browser.
-
 It just works.
 
 ![seamless-sync](assets/seamless-sync.gif)
@@ -64,7 +62,7 @@ Clicky here, go there.
 
 #### Default Editor
 
-Default editor supports opening in Rich Editor and Browser modes.
+Default editor supports opening in Rich Editor mode.
 
 Enjoy it because this will be the last time you open the vanilla view.
 
@@ -72,19 +70,9 @@ Enjoy it because this will be the last time you open the vanilla view.
 
 #### Rich Editor
 
-Rich editor allows to go back to default editor mode directly. Also allows opening in the browser. All information is automatically and instantly synced.
+Rich editor allows to go back to default editor mode directly. All information is automatically and instantly synced.
 
 ![rich-editor-overview](assets/rich-editor-overview.png)
-
-#### Browser
-
-Browser mode lets you open the rich editor as a Chrome/Firefox tab, so you can take it with you everywhere your browser goes.
-
-Drag and drop images, gifs, etc.
-
-It's like Notion, but you own the data.
-
-![browser-mode-overview](assets/browser-mode-overview.png)
 
 ### Rich editing
 
@@ -148,7 +136,6 @@ Every action is in the command palette under the `Markdown Studio:` prefix.
 | Toggle Rich/Source Editor | Cmd/Ctrl+Shift+M (on `.md` files)             | Swap the active `.md` between the rich editor and VS Code's default text editor.                                                                                  |
 | Find in Document          | Cmd/Ctrl+F (inside the rich editor)           | Open the in-editor search bar for the current rich-editor pane.                                                                                                   |
 | Open Rich Diff            | Right-click an SCM entry, or the diff toolbar | Open a side-by-side or rendered markdown diff of the selected file vs HEAD (or any two URIs).                                                                     |
-| Open in Browser           | —                                             | Spin up a local server and open the file in your default browser as the same rich editor — drag-and-drop images, leave it open as a tab, edits sync back to disk. |
 | Factory Reset Settings    | —                                             | Wipe all Markdown Studio settings back to defaults and re-show the welcome modal on the next file open. Confirms before applying.                                 |
 
 ### Keyboard shortcuts

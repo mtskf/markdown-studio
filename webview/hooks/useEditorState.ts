@@ -8,7 +8,7 @@ import {
 } from "./useVSCodeSync";
 import { extractFrontmatter, prependFrontmatter } from "../frontmatter";
 import { mergeSettings, type BetterMarkdownSettings } from "../settings";
-import { vscodeApi, isBrowserMode } from "../vscode-api";
+import { vscodeApi } from "../vscode-api";
 
 function mimeToExt(mime: string): string {
   const map: Record<string, string> = {
@@ -71,17 +71,6 @@ export function useEditorState({
         ? file.name
         : `pasted-${Date.now()}${mimeToExt(file.type)}`;
 
-    if (isBrowserMode) {
-      const match = baseUri.current.match(/\/doc\/([^/]+)$/);
-      if (!match) throw new Error("Cannot determine upload target");
-      const resp = await fetch(
-        `/upload/${match[1]}/${encodeURIComponent(name)}`,
-        { method: "POST", body: file },
-      );
-      if (!resp.ok) throw new Error("Upload failed");
-      const data = await resp.json();
-      return `${baseUri.current}/${data.filename}`;
-    }
     const base64 = await fileToBase64(file);
     return new Promise<string>((resolve, reject) => {
       const handler = (ev: MessageEvent) => {
@@ -324,10 +313,6 @@ export function useEditorState({
     vscodeApi.postMessage({ type: "toggleEditor" });
   }, []);
 
-  const openInBrowser = useCallback(() => {
-    vscodeApi.postMessage({ type: "openInBrowser" });
-  }, []);
-
   const toggleDiff = useCallback(() => {
     if (diffVisible) {
       setDiffVisible(false);
@@ -368,7 +353,6 @@ export function useEditorState({
     uploadImage,
     currentMarkdown,
     switchToSource,
-    openInBrowser,
     toggleDiff,
   };
 }

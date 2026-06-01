@@ -15,7 +15,6 @@ Notion-like WYSIWYG markdown editor as a VS Code native extension. Edits markdow
 | `npm test` | Conversion + round-trip tests (categories A–Q) |
 | `npm run build` | esbuild: extension (node) + webview (browser) → `dist/` |
 | `npm run package` | `vsce package` → `.vsix` |
-| `npm run serve` | Standalone dev server (`server/index.ts`) |
 
 ## Documentation
 

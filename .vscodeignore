@@ -9,7 +9,6 @@ src/**
 webview/**
 node_modules/**
 scripts/**
-server/**
 esbuild.js
 tsconfig.json
 .gitignore

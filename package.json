@@ -2,7 +2,7 @@
   "name": "its-markdown-studio",
   "displayName": "Markdown Studio",
   "description": "Notion-like WYSIWYG markdown editor with rich diffs, tables, images, math, and more.",
-  "version": "2.3.7",
+  "version": "2.3.8",
   "publisher": "tanishq-chaudhary",
   "license": "MIT",
   "repository": {
@@ -85,12 +85,6 @@
         "title": "Open Rich Diff",
         "category": "Markdown Studio",
         "icon": "$(diff)"
-      },
-      {
-        "command": "betterMarkdown.openInBrowser",
-        "title": "Open in Browser",
-        "category": "Markdown Studio",
-        "icon": "$(globe)"
       },
       {
         "command": "betterMarkdown.factoryReset",
@@ -261,7 +255,6 @@
     "test:roundtrip": "npx tsx test/test-roundtrip.ts",
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
-    "serve": "node esbuild.js && npx tsx server/index.ts",
     "package": "vsce package",
     "deploy": "bash scripts/deploy.sh",
     "vscode:prepublish": "node esbuild.js --production"
@@ -271,7 +264,6 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/vscode": "^1.80.0",
-    "@types/ws": "^8.18.1",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.20.0",
     "typescript": "^5.4.0"
@@ -309,7 +301,6 @@
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
     "remark-stringify": "^11.0.0",
-    "unified": "^11.0.5",
-    "ws": "^8.20.0"
+    "unified": "^11.0.5"
   }
 }
