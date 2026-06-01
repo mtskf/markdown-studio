@@ -1,5 +1,27 @@
+# Dependencies
 node_modules/
+
+# Build output (esbuild -> dist/, tsc outDir)
 dist/
+out/
+*.tsbuildinfo
+
+# VSIX package artifacts
 *.vsix
+
+# VS Code extension test runner
 .vscode-test/
+
+# Environment / secrets
 .env
+.env.*
+!.env.example
+
+# Logs & caches
+*.log
+npm-debug.log*
+.eslintcache
+
+# OS files
+.DS_Store
+Thumbs.db
