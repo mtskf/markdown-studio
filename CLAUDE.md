@@ -1,5 +1,41 @@
 # Markdown Studio — Claude workflow notes
 
+## Quick Reference
+
+Notion-like WYSIWYG markdown editor as a VS Code native extension. Edits markdown round-trip through a Tiptap/ProseMirror editor in a webview.
+
+- Stack: TypeScript + esbuild (extension=node, webview=browser), Tiptap/ProseMirror, remark/rehype conversion pipeline, KaTeX for math.
+- Two-process model: extension host (`src/`) ⇄ webview (`webview/`) via postMessage.
+- Settings: VS Code native config under the `markdownStudio.*` namespace (command IDs keep legacy `betterMarkdown.*`).
+
+## Commands
+
+| Command | Description |
+| --- | --- |
+| `npm test` | Conversion + round-trip tests (categories A–Q) |
+| `npm run build` | esbuild: extension (node) + webview (browser) → `dist/` |
+| `npm run package` | `vsce package` → `.vsix` |
+| `npm run serve` | Standalone dev server (`server/index.ts`) |
+
+## Documentation
+
+| Document | Purpose | When to read |
+| --- | --- | --- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, two-process model, data flow | Before a new feature or refactor |
+| [docs/WORKFLOW.md](docs/WORKFLOW.md) | Skills, hooks, CI, release flow | Process questions |
+| [docs/SPEC.md](docs/SPEC.md) | Feature specs | During implementation |
+| [docs/LEARNING.md](docs/LEARNING.md) | Decisions, gotchas, patterns | Bug fixes, design questions |
+| [docs/TODO.md](docs/TODO.md) | Outstanding tasks | Task selection |
+| [CHANGELOG.md](CHANGELOG.md) | Version history (root — Marketplace Changelog tab) | Release prep |
+| [README.md](README.md) | Marketplace page (root — required there) | — |
+
+## Workflow Improvement
+
+作業中に以下を発見したら、確認を取らずに自律的に記録する:
+
+- 設計判断・落とし穴・発見したパターン → [docs/LEARNING.md](docs/LEARNING.md)（重複確認のうえ追記）
+- 手動で繰り返している作業・自動化できそうな処理・スキルの不足 → [docs/TODO.md](docs/TODO.md)
+
 ## Before finishing ANY change
 
 Run all four steps, in this order, every time. No exceptions.

@@ -3,8 +3,7 @@
 .env
 .env.*
 CLAUDE.md
-TODO.md
-SPEC.md
+docs/**
 test/**
 src/**
 webview/**
