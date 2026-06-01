@@ -1,5 +1,7 @@
 # Markdown Studio
 
+Notion-like WYSIWYG markdown editor for VS Code — rich diffs, tables, images, math, and more.
+
 I read as much `.md` as all other programming languages combined.
 
 Personal notes, research notes, Claude Code generated reports, random READMEs.
@@ -7,6 +9,22 @@ Personal notes, research notes, Claude Code generated reports, random READMEs.
 I find it easier to read Notion-like markdown rather than raw markdown.
 
 That's why Markdown Studio exists.
+
+## Contents
+
+- [The Cool Stuff](#the-cool-stuff)
+- [Loaded With Features](#loaded-with-features)
+- [Known Limitations](#known-limitations)
+- [Reference](#reference)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+  - [Commands](#commands)
+  - [Keyboard shortcuts](#keyboard-shortcuts)
+  - [Settings](#settings)
+  - [Privacy](#privacy)
+  - [License](#license)
+  - [Contributing](#contributing)
+  - [Available platforms](#available-platforms)
 
 ## The Cool Stuff
 
@@ -80,10 +98,10 @@ The beloved `/` works out of the box. It's like you never left your favourite ed
 
 Tables have options to:
 
-+ add row above, add row below
-+ add column to the left, add columns to the right
-+ remove rows, remove columns
-+ drop the entire table
+- add row above, add row below
+- add column to the left, add columns to the right
+- remove rows, remove columns
+- drop the entire table
 
 You can write math using $\KaTeX$ in both inline and block modes.
 
@@ -93,7 +111,7 @@ You can write math using $\KaTeX$ in both inline and block modes.
 
 #### Mermaid Diagrams
 
-` ```mermaid ` fences render as live diagrams inline — edit the source, the preview updates.
+A code fence labelled `mermaid` renders as a live diagram inline — edit the source, the preview updates.
 
 ![mermaid](assets/mermaid.gif)
 
@@ -105,12 +123,17 @@ Paste a YouTube or GitHub URL and get a rich card; the source stays a bare URL s
 
 ## Known Limitations
 
-+ Conversion from markdown to rich text and back to markdown is not one-to-one exact map. The markdown after is normalized. You can control this to some extent via the settings icon in the rich editor mode.
-+ Bold/italic adjacent to a word, when the run also contains a code span, can't be expressed in plain CommonMark (e.g. `**`bold`**Apples` parses as literal asterisks, not bold). The editor saves these as `**`bold`**<!---->Apples` — an empty HTML comment is the cleanest CommonMark-valid way to break the flanking run so the bold survives re-open. Adding a space (or any non-word char) avoids the separator entirely and is handled naturally.
+- Conversion from markdown to rich text and back is not a 1:1 map — the file is normalized on save. You can tune normalization via the settings icon in rich editor mode, or under `markdownStudio.*` in VS Code settings.
+- A handful of CommonMark edge cases (e.g. bold/italic directly adjacent to a code span) need a tiny separator to round-trip cleanly. The editor handles this automatically. See [docs/LEARNING.md](docs/LEARNING.md) for the gory details.
 
-***
+---
 
-## Meta Thingies
+## Reference
+
+### Requirements
+
+- VS Code 1.80.0 or newer
+- Activates on `.md` files — no login, no other dependencies
 
 ### Installation
 
@@ -130,11 +153,47 @@ Every action is in the command palette under the `Markdown Studio:` prefix.
 
 ### Keyboard shortcuts
 
-| Shortcut         | Action                                  |
-| ---------------- | --------------------------------------- |
-| Cmd/Ctrl+Shift+M | Toggle rich / source editor             |
-| Cmd/Ctrl+F       | Find in document                        |
-| /                | Open slash command menu (start of line) |
+| Shortcut             | Action                                                    |
+| -------------------- | --------------------------------------------------------- |
+| Cmd/Ctrl+Shift+M     | Toggle rich / source editor                               |
+| Cmd/Ctrl+F           | Find in document (rich editor)                            |
+| Cmd/Ctrl+B           | Bold                                                      |
+| Cmd/Ctrl+I           | Italic                                                    |
+| Cmd/Ctrl+Shift+X     | Strikethrough                                             |
+| Cmd/Ctrl+E           | Inline code                                               |
+| Cmd/Ctrl+Alt+1..6    | Heading level 1–6                                         |
+| Cmd/Ctrl+Alt+0       | Paragraph                                                 |
+| Cmd/Ctrl+/           | Bubble menu on selection (expands to surrounding word)    |
+| /                    | Slash command menu (at the start of a line)               |
+
+Standard markdown input rules also work — type `# `, `- `, `1. `, ` ``` `, `> `, `[ ]` at the start of a line and the editor turns them into the matching block as you type.
+
+### Settings
+
+All settings live under `markdownStudio.*` in VS Code's native settings store. Three ways to reach them:
+
+- Settings UI — search for "Markdown Studio"
+- `.vscode/settings.json` (any scope)
+- Gear icon inside the rich editor (writes to User scope)
+
+| Setting                              | Default         | What it controls                                                            |
+| ------------------------------------ | --------------- | --------------------------------------------------------------------------- |
+| `markdownStudio.autoSave`            | `true`          | Silent save on first open to persist the round-trip normalization           |
+| `markdownStudio.bullet`              | `-`             | Unordered-list bullet (`-` / `*` / `+`)                                     |
+| `markdownStudio.emphasis`            | `_`             | Italic marker (`_` or `*`)                                                  |
+| `markdownStudio.strong`              | `**`            | Bold marker (`**` or `__`)                                                  |
+| `markdownStudio.rule`                | `-`             | Horizontal-rule character (`-` / `*` / `_`)                                 |
+| `markdownStudio.listItemIndent`      | `one`           | List continuation indent (`one` / `tab` / `mixed`)                          |
+| `markdownStudio.bubbleMenuShortcut`  | `Mod+/`         | Keybinding for the selection bubble menu                                    |
+| `markdownStudio.defaultCodeBlockLang`| `""`            | Default language for unlabelled code blocks                                 |
+| `markdownStudio.diffMode`            | `rendered`      | Default rich-diff view (`source` / `rendered`)                              |
+| `markdownStudio.diffLayout`          | `side-by-side`  | Layout for the source diff (`unified` / `side-by-side`)                     |
+| `markdownStudio.compactLists`        | `true`          | Drop blank lines between consecutive list items                             |
+| `markdownStudio.unescapeSpecialChars`| `true`          | Strip redundant `\~`, `\*`, `\_`, `\[` escapes                              |
+| `markdownStudio.renumberOrderedLists`| `true`          | Renumber ordered lists to `1.`, `2.`, `3.`, …                               |
+| `markdownStudio.shellscriptToBash`   | `true`          | Rewrite `shellscript` code fences to `bash`                                 |
+| `markdownStudio.fixTableHeaders`     | `true`          | Rebuild empty table headers after conversion                                |
+| `markdownStudio.dedupImageAltText`   | `true`          | Collapse `![alt](x)\nalt` → `![alt](x)`                                     |
 
 ### Privacy
 
@@ -144,14 +203,15 @@ I am too lazy to implement that.
 
 Everything runs locally in your VS Code instance.
 
-### Bugs/Feature Requests
+### License
 
-If you encounter any bugs or have any feature requests, please [open an issue](https://github.com/chaudhary1337/markdown-studio/issues).
+[MIT](LICENSE) — do whatever, just don't blame me.
 
-I am actively using it myself, so expect frequent updates.
+### Contributing
 
-### Available Platforms
+Bug reports, feature requests and PRs are welcome at the [issue tracker](https://github.com/chaudhary1337/markdown-studio/issues). I am actively using it myself, so expect frequent updates.
 
-VS Code: https://marketplace.visualstudio.com/items?itemName=tanishq-chaudhary.its-markdown-studio
+### Available platforms
 
-Open VSX: https://open-vsx.org/extension/tanishq-chaudhary/its-markdown-studio
+- VS Code Marketplace — <https://marketplace.visualstudio.com/items?itemName=tanishq-chaudhary.its-markdown-studio>
+- Open VSX Registry — <https://open-vsx.org/extension/tanishq-chaudhary/its-markdown-studio>
