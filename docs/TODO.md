@@ -10,10 +10,6 @@ Legend / notes preserved from the original sections:
 
 ## High Priority
 
-### Feature
-
-- [ ] 🚧 🚩 🎨 **Remove "…" placeholder shown after folded headings.** When a heading is folded, [webview/styles/editor.css:141-146](../webview/styles/editor.css#L141) renders `.heading-with-toggle.is-folded::after { content: " …"; … }`, appending a grey ellipsis next to the heading text. The chevron (▶) already signals folded state — the ellipsis is redundant visual noise. Fix: remove the entire `.heading-with-toggle.is-folded::after` rule (lines 141-146) and the explanatory comment block above it. No other CSS/JS references the `::after`, so it's a clean delete. No round-trip impact (CSS only).
-
 ### Bug / Code Review — P1 High
 
 - [ ] 🚧 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ` ``` ` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.
@@ -253,6 +249,7 @@ Legend / notes preserved from the original sections:
 
 ## Done
 
+- [x] 🚩 🎨 **Remove "…" placeholder shown after folded headings.** When a heading is folded, [webview/styles/editor.css:141-146](../webview/styles/editor.css#L141) renders `.heading-with-toggle.is-folded::after { content: " …"; … }`, appending a grey ellipsis next to the heading text. The chevron (▶) already signals folded state — the ellipsis is redundant visual noise. Fix: remove the entire `.heading-with-toggle.is-folded::after` rule (lines 141-146) and the explanatory comment block above it. No other CSS/JS references the `::after`, so it's a clean delete. No round-trip impact (CSS only).
 - [x] 🐛 Embed `exit()` reads stale `node.attrs.url`. [webview/extensions/YouTubeEmbed.tsx:65-68](../webview/extensions/YouTubeEmbed.tsx#L65) and [GitHubEmbed.tsx:144-147](../webview/extensions/GitHubEmbed.tsx#L144) call `save()` (`updateAttributes`) then guard cursor placement on `node.attrs.url`, which hasn't flushed → caret left inside a freshly-created embed. Fix: guard on local `url.trim()`.
 - [x] 🚩 🐛 **Heading fold toggle: chevron + "…" placeholder don't update on unfold.** Clicking the chevron on an outer heading (e.g. `## High Priority` in `docs/TODO.md`) reveals the nested children (sub-heading + body show through) but the heading's own chevron stays `▶` instead of flipping to `▼`, and a residual `…` placeholder remains under it — so the heading visually still looks folded. Repro: open this file in the rich editor, fold `## High Priority`, then unfold.
   - Root cause (verified): toggle in [webview/extensions/HeadingFold.tsx:143-145](../webview/extensions/HeadingFold.tsx#L143) dispatches a meta-only transaction (`tr.setMeta(HEADING_FOLD_KEY, …)`, `docChanged === false`). Tiptap's `ReactNodeViewRenderer.update()` short-circuits when `node`, `decorations`, and `innerDecorations` are all referentially equal — which is exactly the case for a meta-only tr — so the `HeadingView` React component never re-renders. Its `isFolded = pluginState?.folded.has(index)` therefore reflects the previous state, leaving the chevron stale.

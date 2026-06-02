@@ -135,15 +135,6 @@ html, body, #root {
 .heading-with-toggle.is-folded .heading-fold-toggle {
   opacity: 0.85;
 }
-/* The collapsed-content marker — sits as a subtle "…" after the heading
-   text when the heading is folded, so users get visual feedback that the
-   body is hidden without scrolling for the next heading. */
-.heading-with-toggle.is-folded::after {
-  content: " …";
-  color: var(--vscode-descriptionForeground, #888);
-  font-weight: 400;
-  opacity: 0.7;
-}
 
 /* Links */
 .tiptap-editor a {
