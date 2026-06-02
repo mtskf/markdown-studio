@@ -28,3 +28,6 @@ Thumbs.db
 
 # Claude Code — local/personal overrides (machine-specific paths, personal settings)
 .claude/settings.local.json
+
+# /review-cycle workspace (skill-internal scratch)
+.review-cycle/
