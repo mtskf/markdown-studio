@@ -14,8 +14,6 @@ Legend / notes preserved from the original sections:
 
 ### Security — Extension hardening (P1)
 
-- [ ] 🚧 🔒 P1: `uploadImage` accepts any extension/filename — webview-controlled. <!-- branch: fix/upload-image-whitelist-hash-cap --> Can overwrite `~/.bashrc`, `~/.command` files, etc. via malicious `.md` postMessage. [src/provider.ts:282-309](../src/provider.ts#L282). Fix: whitelist extensions (`png|jpg|jpeg|gif|webp|svg`) + content-hash filenames + size cap.
-
 ### Refactoring — R1 High (low-effort, high-leverage)
 
 - [ ] 🔧 `readSettings` / `writeSettings` duplicated verbatim across host files. [src/provider.ts:16-43](../src/provider.ts#L16) and [src/diffPanel.ts:7-32](../src/diffPanel.ts#L7) hold identical implementations (read each known key, diff-then-update on write). Extract to `src/settings-utils.ts` and import from both — keeps writes one-source-of-truth, ready for any future write-path additions.
@@ -238,6 +236,7 @@ Legend / notes preserved from the original sections:
 
 ## Done
 
+- [x] 🔒 P1: `uploadImage` accepts any extension/filename — webview-controlled. Can overwrite `~/.bashrc`, `~/.command` files, etc. via malicious `.md` postMessage. [src/provider.ts:282-309](../src/provider.ts#L282). Fix: whitelist extensions (`png|jpg|jpeg|gif|webp|svg`) + content-hash filenames + size cap.
 - [x] ⚙️ `ovsx` not in deps/devDeps/lockfile. [.github/workflows/publish.yml:43](../.github/workflows/publish.yml#L43) `npx ovsx publish` live-downloads at publish time (vsce is pinned, ovsx isn't) → Open VSX publish can break. Fix: `npm i -D ovsx`.
 - [x] 🐛 Image-upload reply has no request-id or timeout. [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
 - [x] 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ` ``` ` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.

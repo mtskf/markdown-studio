@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import { SETTING_KEYS } from "../webview/settings";
+import { prepareImageUpload } from "./uploadImage";
 
 const CONFIG_NAMESPACE = "markdownStudio";
 const CURSORS_KEY = "betterMarkdown.cursors";
@@ -346,37 +347,41 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
         // concurrent uploads can correlate their replies. Older clients
         // without a requestId still get a reply (undefined === undefined).
         const requestId = msg.requestId as string | undefined;
+        // Read-only documents (git:/scm: views) must not produce disk writes.
+        // Without this, a read-only Rich-editor diff view could still drop an
+        // image into the doc's folder via an upload message.
+        if (isReadonly) {
+          webview.postMessage({ type: "imageUploaded", requestId, src: null });
+          return;
+        }
+        const prepared = prepareImageUpload(msg.filename, msg.data);
+        if (!prepared.ok) {
+          webview.postMessage({ type: "imageUploaded", requestId, src: null });
+          return;
+        }
         try {
-          const data = Buffer.from(msg.data as string, "base64");
-          const requested = path.basename(msg.filename as string);
-          // Find unique filename
-          let finalName = requested;
-          let counter = 1;
-          while (true) {
-            const dest = vscode.Uri.file(path.join(docFolderPath, finalName));
-            try {
-              await vscode.workspace.fs.stat(dest);
-              const ext = path.extname(requested);
-              const base = path.basename(requested, ext);
-              finalName = `${base}-${counter}${ext}`;
-              counter++;
-            } catch {
-              break; // doesn't exist, use this name
-            }
+          const destUri = vscode.Uri.file(
+            path.join(docFolderPath, prepared.finalName),
+          );
+          // Content-hashed name: if a file with the same hash already exists,
+          // the bytes are identical — skip the write and reuse it.
+          let exists = false;
+          try {
+            await vscode.workspace.fs.stat(destUri);
+            exists = true;
+          } catch {
+            // not found
           }
-          const destUri = vscode.Uri.file(path.join(docFolderPath, finalName));
-          await vscode.workspace.fs.writeFile(destUri, data);
+          if (!exists) {
+            await vscode.workspace.fs.writeFile(destUri, prepared.content);
+          }
           webview.postMessage({
             type: "imageUploaded",
             requestId,
-            src: `${baseUri}/${finalName}`,
+            src: `${baseUri}/${prepared.finalName}`,
           });
-        } catch (err: any) {
-          webview.postMessage({
-            type: "imageUploaded",
-            requestId,
-            src: null,
-          });
+        } catch {
+          webview.postMessage({ type: "imageUploaded", requestId, src: null });
         }
       } else if (msg.type === "edit") {
         if (isReadonly) return;
