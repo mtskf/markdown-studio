@@ -3,8 +3,13 @@
 ## Priority Features
 
 - [ ] 🚩 **[MUST] Pass context from the Rich editor to Claude Code (Cmd+Opt+K).** Today the shortcut does nothing when the Rich editor is focused: it is a webview custom editor, so there is no `window.activeTextEditor` for Claude Code to read a selection from (and the webview may also swallow the keystroke). Workaround until fixed: toggle to source (Cmd+Shift+M) or `@`-mention the file.
-  - Approach: bridge the Tiptap/ProseMirror selection out of the webview to a host command that hands it to Claude Code. The rich↔source mapping is not 1:1, so the selected range must be mapped back to the corresponding markdown offsets in the underlying `TextDocument` via the conversion pipeline.
-  - Dependency / unknown to resolve first: does the Claude Code extension expose a programmatic command/API to inject selection or file context, or does it only read `activeTextEditor`? Investigate its command IDs. If nothing accepts external input, fall back to syncing the underlying text document's selection so Claude Code's existing command can read it.
+  - Investigation (2026-06-02, against `anthropic.claude-code` 2.1.159 `extension.js`) — resolved:
+    - Cmd+Opt+K = command `claude-code.insertAtMentioned`; its handler is `async () => { let e = window.activeTextEditor; if (!e) return; ... }` — it takes NO arguments and reads `activeTextEditor` directly. Empty selection → `@<relpath>`, non-empty → `@<relpath>#Lstart-Lend`.
+    - Same for `claude-vscode.insertAtMention` (Alt+K) and for the automatic `<ide_selection>` context (driven by `window.onDidChangeTextEditorSelection`, gated on `=== activeTextEditor`).
+    - The keybindings are `when: editorTextFocus`, which is false while the webview is focused → they never fire in the Rich editor.
+    - No exported extension API (activate returns nothing usable). So there is no clean way to pass a selection/URI to Claude Code.
+  - Only viable approach (no Claude Code changes): we are a `CustomTextEditorProvider`, so the backing `TextDocument` exists. (1) register our own keybinding scoped to the Rich editor (`when: activeCustomEditorId == 'betterMarkdown.editor'`); (2) `showTextDocument` the backing doc to make it active and set its selection; (3) `executeCommand('claude-code.insertAtMentioned')`; (4) optionally restore focus to the Rich editor.
+  - Constraints: focus briefly switches to the source editor (unavoidable — the command reads `activeTextEditor`). Precise ProseMirror→markdown range mapping is hard (htmlToMarkdown is not position-preserving). MVP = file-level `@`-mention (empty-selection path); range mapping is a follow-up.
 
 ## Code Review Findings (2026-06-02)
 
