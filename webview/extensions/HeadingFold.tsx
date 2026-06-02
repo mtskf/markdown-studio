@@ -122,6 +122,23 @@ export function setInitialHeadingFolds(editor: Editor, folds: number[]): void {
 }
 
 function HeadingView({ node, getPos, editor }: any) {
+  // Tiptap's ReactNodeViewRenderer.update() short-circuits when node and
+  // decorations are reference-equal. Fold toggles dispatch a meta-only
+  // transaction (docChanged=false, no node-level decoration on the heading
+  // itself), so without this subscription the chevron + .is-folded class
+  // stay stale until the next doc-changing edit. Re-read plugin state on
+  // every fold meta transaction.
+  const [, force] = React.useReducer((x: number) => x + 1, 0);
+  React.useEffect(() => {
+    const handler = ({ transaction }: { transaction: { getMeta: (k: any) => unknown } }) => {
+      if (transaction.getMeta(HEADING_FOLD_KEY) !== undefined) force();
+    };
+    editor.on("transaction", handler);
+    return () => {
+      editor.off("transaction", handler);
+    };
+  }, [editor]);
+
   const level: number = node.attrs.level ?? 1;
   const pluginState = HEADING_FOLD_KEY.getState(editor.state);
   const pos = typeof getPos === "function" ? getPos() : null;

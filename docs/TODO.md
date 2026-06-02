@@ -12,7 +12,7 @@ Legend / notes preserved from the original sections:
 
 ### Feature
 
-- [ ] 🚧 🚩 🐛 **Rich editor doesn't pick up external `.md` changes.** <!-- branch: fix/rich-editor-external-change-refresh --> When the backing file is modified outside the webview (git pull, `/ship` auto-commits, another editor, format-on-save from a different tool, etc.), the open Rich editor tab keeps rendering the stale content until the file is manually closed and reopened. The native source editor auto-refreshes; the Rich editor should mirror that.
+- [ ] 🚧 🚩 🐛 **Rich editor doesn't pick up external `.md` changes.** When the backing file is modified outside the webview (git pull, `/ship` auto-commits, another editor, format-on-save from a different tool, etc.), the open Rich editor tab keeps rendering the stale content until the file is manually closed and reopened. The native source editor auto-refreshes; the Rich editor should mirror that.
   - Likely root cause: [src/provider.ts](../src/provider.ts) wires `onDidChangeTextDocument` to push edits to the webview, but external file changes that bypass VS Code's TextDocument (or arrive while the webview holds an in-memory copy) aren't re-broadcast. Possibly also missing a `vscode.workspace.createFileSystemWatcher` fallback for the `file:` path.
   - Fix sketch: on every `onDidChangeTextDocument` (incl. external-edit revisions) **and** on `webview.onDidChangeViewState` when the webview regains visibility, re-`postMessage` the latest `document.getText()`. Guard against the webview's own edit echoes (`pendingWebviewEdits`) so a normal keystroke round-trip doesn't trigger a spurious reload.
 - [ ] 🚧 🚩 🐛 **Heading fold toggle: chevron + "…" placeholder don't update on unfold.** <!-- branch: fix/heading-fold-stale-render --> Clicking the chevron on an outer heading (e.g. `## High Priority` in `docs/TODO.md`) reveals the nested children (sub-heading + body show through) but the heading's own chevron stays `▶` instead of flipping to `▼`, and a residual `…` placeholder remains under it — so the heading visually still looks folded. Repro: open this file in the rich editor, fold `## High Priority`, then unfold.
@@ -22,7 +22,7 @@ Legend / notes preserved from the original sections:
 
 ### Bug / Code Review — P1 High
 
-- [ ] 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ` ``` ` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.
+- [ ] 🚧 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. <!-- branch: fix/renumber-ordered-lists-fence-guard --> [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ` ``` ` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.
 - [ ] 🐛 Embed `exit()` reads stale `node.attrs.url`. [webview/extensions/YouTubeEmbed.tsx:65-68](../webview/extensions/YouTubeEmbed.tsx#L65) and [GitHubEmbed.tsx:144-147](../webview/extensions/GitHubEmbed.tsx#L144) call `save()` (`updateAttributes`) then guard cursor placement on `node.attrs.url`, which hasn't flushed → caret left inside a freshly-created embed. Fix: guard on local `url.trim()`.
 - [ ] 🐛 Image-upload reply has no request-id or timeout. [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
 - [ ] ⚙️ `tsx` not in deps/devDeps/lockfile. [package.json](../package.json) `npm test` uses `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
@@ -35,7 +35,6 @@ Legend / notes preserved from the original sections:
 
 ### Security — Supply chain (P1)
 
-- [ ] 🔧 P1: Replace `lucide-react@1.7.0` (v1 series freshly reset 2026-03, single maintainer) with inline SVGs in `webview/icons/`. ~25 icons across 9 files, ~150 LoC. Remove dep from `package.json`.
 - [ ] 🔧 P1: Replace `diff2html` + transitive `@profoundlogic/hogan` (new fork created 2025-10-08) with `jsdiff`-based renderer in [webview/components/DiffView.tsx](../webview/components/DiffView.tsx). ~250 LoC. Removes 1 direct + 1 high-risk transitive dep.
 
 ### Refactoring — R1 High (low-effort, high-leverage)
@@ -86,6 +85,7 @@ Legend / notes preserved from the original sections:
 
 ### Refactoring — R2 Medium
 
+- [ ] 🔧 /merge-pr 改善: `phase2b-merge-post.sh:179` references `$PR_TITLE` in the `TODO_SYNCED="no_marker"` branch but the variable is never assigned in that path → `unbound variable` error at the end of the script (after a successful merge, so cosmetic only). Reproduces when `/ship` Step 0 already removed the branch marker before merge-pr runs (the expected /ship → /merge-pr handoff). Fix: either capture `PR_TITLE="$(gh pr view "$PR_NUMBER" --json title -q .title)"` at the top of the script, or drop the title from the warning message. Target: `~/.claude/skills/merge-pr/scripts/phase2b-merge-post.sh`.
 - [ ] 🎯 `NodeViewProps` not typed. Every custom NodeView destructures `({ node, updateAttributes, ... }: any)`: [YouTubeEmbed.tsx:38](../webview/extensions/YouTubeEmbed.tsx#L38), [GitHubEmbed.tsx:112](../webview/extensions/GitHubEmbed.tsx#L112), [MathBlock.tsx:7](../webview/extensions/MathBlock.tsx#L7), [MathInline.tsx:7](../webview/extensions/MathInline.tsx#L7), [CodeBlockView.tsx:16](../webview/extensions/CodeBlockView.tsx#L16). Import `NodeViewProps` from `@tiptap/react` and use it — ~5 `any` casts removed and `node.attrs.*` becomes type-checked.
 - [ ] 🎯 Git extension API loosely typed. [src/provider.ts:151](../src/provider.ts#L151) uses `(gitExt.exports as any).getAPI(1)` and `repositories.find((r: any) => …)`. Declare a minimal local interface (`interface GitAPI { repositories: { rootUri: vscode.Uri; show: (ref: string, path: string) => Promise<string> }[] }`) so the call site is type-checked.
 - [ ] 🎯 Tab inspection casts. [src/extension.ts:77,79](../src/extension.ts#L77) does `(input as any).viewType` / `(input as any).uri`. Use `TabInputCustom` / `TabInputText` (provided by `@types/vscode`) with `instanceof` narrowing.
@@ -250,8 +250,14 @@ Legend / notes preserved from the original sections:
 - [ ] esc. key should highlight the entire line just like notion
 - [ ] make sure cursor does not vanish/gets autofocused after navigating inside/outside of katex _(partial)_ — `cbe8e70` covers `Ctrl+A select-all`; bidirectional click-in/out paths may still drop focus
 - [ ] ⚠️ Bullet points nested inside checkboxes — **要ブラウザ検証**: `TaskItem.configure({ nested: true })` is enabled at [webview/App.tsx:70](../webview/App.tsx#L70) and no failing round-trip test exists. Bug may already be fixed; verify in browser before keeping or closing.
+- [ ] 🔧 Replace `lucide-react@1.7.0` (v1 series freshly reset 2026-03, single maintainer) with inline SVGs in `webview/icons/`. ~25 icons across 9 files, ~150 LoC. Remove dep from `package.json`.
 
 ## Done
+
+- [x] 🚩 🐛 **Heading fold toggle: chevron + "…" placeholder don't update on unfold.** Clicking the chevron on an outer heading (e.g. `## High Priority` in `docs/TODO.md`) reveals the nested children (sub-heading + body show through) but the heading's own chevron stays `▶` instead of flipping to `▼`, and a residual `…` placeholder remains under it — so the heading visually still looks folded. Repro: open this file in the rich editor, fold `## High Priority`, then unfold.
+  - Root cause (verified): toggle in [webview/extensions/HeadingFold.tsx:143-145](../webview/extensions/HeadingFold.tsx#L143) dispatches a meta-only transaction (`tr.setMeta(HEADING_FOLD_KEY, …)`, `docChanged === false`). Tiptap's `ReactNodeViewRenderer.update()` short-circuits when `node`, `decorations`, and `innerDecorations` are all referentially equal — which is exactly the case for a meta-only tr — so the `HeadingView` React component never re-renders. Its `isFolded = pluginState?.folded.has(index)` therefore reflects the previous state, leaving the chevron stale.
+  - "…" placeholder source (verified): [webview/styles/editor.css:141-146](../webview/styles/editor.css#L141) renders `.heading-with-toggle.is-folded::after { content: " …"; }`. Because the NodeView never re-renders, the `is-folded` class on `NodeViewWrapper` is never removed, so the CSS-generated ellipsis persists.
+  - Fix sketch: force the affected heading NodeViews to re-render on plugin-state changes. Cheapest path is to subscribe inside `HeadingView` (e.g. `useEditor`-style hook or `useEffect` on `editor.on("transaction")`) and call `forceUpdate` / set local state when `HEADING_FOLD_KEY` state changes; alternative is to attach the `folded` set to a decoration on the heading node so `decorations` becomes referentially new on toggle, which naturally triggers Tiptap's update path. Either fix flips the chevron and clears the `is-folded` class in the same tick.
 
 ### High Priority — Done
 
