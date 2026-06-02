@@ -1,18 +1,24 @@
 # Markdown Studio — TODO
 
+## Priority Features
+
+- [ ] 🚩 **[MUST] Pass context from the Rich editor to Claude Code (Cmd+Opt+K).** Today the shortcut does nothing when the Rich editor is focused: it is a webview custom editor, so there is no `window.activeTextEditor` for Claude Code to read a selection from (and the webview may also swallow the keystroke). Workaround until fixed: toggle to source (Cmd+Shift+M) or `@`-mention the file.
+  - Approach: bridge the Tiptap/ProseMirror selection out of the webview to a host command that hands it to Claude Code. The rich↔source mapping is not 1:1, so the selected range must be mapped back to the corresponding markdown offsets in the underlying `TextDocument` via the conversion pipeline.
+  - Dependency / unknown to resolve first: does the Claude Code extension expose a programmatic command/API to inject selection or file context, or does it only read `activeTextEditor`? Investigate its command IDs. If nothing accepts external input, fall back to syncing the underlying text document's selection so Claude Code's existing command can read it.
+
 ## Code Review Findings (2026-06-02)
 
 Multi-agent review + adversarial verification. Ordered by priority. Each verified against the actual code; refuted false positives omitted. `(partial)` = real but narrower than first reported.
 
 ### P0 — Critical (shipped security)
 
-- [ ] 🔒 Shell injection in dev-server `openLink` (RCE). [server/index.ts:365-377](../server/index.ts#L365) interpolates a WebSocket-supplied `href` into `` exec(`open "${href}"`) `` (also `start`/`xdg-open`). The server ships in the vsix (`dist/server.js`, spawned by "Open in Browser") and binds all interfaces on :3333 with no origin check → arbitrary command execution. Fix: `execFile("open", [href])` (no shell) + allowlist `http`/`https`/`mailto` schemes.
+- [ ] 🔒 Shell injection in dev-server `openLink` (RCE). [server/index.ts:365-377](../server/index.ts#L365) interpolates a WebSocket-supplied `href` into ``exec(`open "${href}"`)`` (also `start`/`xdg-open`). The server ships in the vsix (`dist/server.js`, spawned by "Open in Browser") and binds all interfaces on :3333 with no origin check → arbitrary command execution. Fix: `execFile("open", [href])` (no shell) + allowlist `http`/`https`/`mailto` schemes.
 
 ### P1 — High
 
-- [ ] 🔒 Shell injection in dev-server `toggleEditor`. [server/index.ts:402-407](../server/index.ts#L402) does `` exec(`code "${filePath}"`) ``; a file path containing shell metachars injects. Same flaw in the `requestGitDiff` handler (`git show HEAD:"..."` interpolation, ~line 386). Fix: `execFile("code", [filePath])` and `execFile` for git.
+- [ ] 🔒 Shell injection in dev-server `toggleEditor`. [server/index.ts:402-407](../server/index.ts#L402) does ``exec(`code "${filePath}"`)``; a file path containing shell metachars injects. Same flaw in the `requestGitDiff` handler (`git show HEAD:"..."` interpolation, ~line 386). Fix: `execFile("code", [filePath])` and `execFile` for git.
 - [ ] 🔒 Path traversal in dev-server `/doc/` image route. [server/index.ts:282-289](../server/index.ts#L282) joins `path.join(dir, file)` with no canonicalization (the upload route uses `path.basename`, this one doesn't) → reads files outside `dir`. Fix: `const r = path.resolve(dir, file); if (!r.startsWith(path.resolve(dir)+path.sep)) return 403;`.
-- [ ] 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ```` ``` ```` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.
+- [ ] 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ` ``` ` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.
 - [ ] 🐛 Embed `exit()` reads stale `node.attrs.url`. [webview/extensions/YouTubeEmbed.tsx:65-68](../webview/extensions/YouTubeEmbed.tsx#L65) and [GitHubEmbed.tsx:144-147](../webview/extensions/GitHubEmbed.tsx#L144) call `save()` (`updateAttributes`) then guard cursor placement on `node.attrs.url`, which hasn't flushed → caret left inside a freshly-created embed. Fix: guard on local `url.trim()`.
 - [ ] 🐛 Image-upload reply has no request-id or timeout. [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
 - [ ] ⚙️ `tsx` not in deps/devDeps/lockfile. [package.json:259](../package.json#L259) `npm test` / `serve` use `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
@@ -24,7 +30,7 @@ Multi-agent review + adversarial verification. Ordered by priority. Each verifie
 - [ ] 🐛 Fixed 1500 ms wait for the browser-preview server. [src/extension.ts:162-176](../src/extension.ts#L162) sleeps then opens the URL with no readiness probe and no `on("error")` handler → races on slow start / busy port, opens a dead address if the server exited. Fix: poll `localhost:3333` for readiness; bail/notify on spawn error or early exit.
 - [ ] 🐛 (partial) `openLink` opens arbitrary local files. [src/provider.ts:256-269](../src/provider.ts#L256) resolves a webview-supplied non-http `href` via `path.resolve(docDir, href)` and `vscode.open` with no confinement → can open files outside the workspace (bounded: opens in an editor, no exec). Fix: verify the resolved path stays within a workspace folder.
 - [ ] 🐛 (partial/latent) Math test mirror diverges from production on `<`/`>`/`&`. [test/pipeline.ts:93-98](../test/pipeline.ts#L93) captures entity-encoded span text; production [useVSCodeSync.ts:182](../webview/hooks/useVSCodeSync.ts#L182) reads DOM-decoded `data-latex`. Currently both round-trip the same, but a production regression on LaTeX with `<` would escape tests. Fix: source the placeholder from `data-latex` + decode entities in the test mirror.
-- [ ] 🐛 (partial) Naive single-backtick code-span scanning. [webview/markdown.config.ts:130-144](../webview/markdown.config.ts#L130) (and the same logic in `stripAutolinks`/`unescapeBareUrls`/`splitTableRow`) closes a code span at the next single backtick, mis-parsing double-backtick spans like `` ``foo`bar`` `` → unescaping leaks into protected code. Fix: match backtick runs by length (CommonMark).
+- [ ] 🐛 (partial) Naive single-backtick code-span scanning. [webview/markdown.config.ts:130-144](../webview/markdown.config.ts#L130) (and the same logic in `stripAutolinks`/`unescapeBareUrls`/`splitTableRow`) closes a code span at the next single backtick, mis-parsing double-backtick spans like foo\`bar` `→ unescaping leaks into protected code. Fix: match backtick runs by length (CommonMark).
 - [ ] 🐛 (partial) Overbroad `\[` unescape. [webview/markdown.config.ts:168](../webview/markdown.config.ts#L168) strips `\[` unconditionally; literal text `\[label](url)` may re-parse as a link on reload. Corruption loop unproven (remark may escape the `]`/`(` too). Fix: skip the unescape when a `\[...\](` link shape follows; add the verifying round-trip test below.
 - [ ] 🐛 Leaked panel listeners. [src/provider.ts:343,364](../src/provider.ts#L343) discards the `onDidChangeViewState` and the second `onDidDispose` disposables (low impact — panel-scoped — but inconsistent with the other two). Fix: store and dispose them.
 - [ ] ⚙️ `copyCSS()` not re-run in `--watch`. [esbuild.js:93-95](../esbuild.js#L93) copies CSS/fonts once; watch contexts never re-invoke it → stale `dist/editor.css` on style edits during dev. Fix: `build.onEnd(() => copyCSS())` plugin on the webview watch context.
@@ -62,7 +68,7 @@ Second-pass review focused on refactoring, performance, tests, and type safety (
 - [ ] ⚡ Duplicated DOM traversal in `markdownToHtml` + `preprocessTiptapHtml`. [useVSCodeSync.ts:80,177](../webview/hooks/useVSCodeSync.ts#L80) each call `new DOMParser().parseFromString(...)` + serialize, so a single round-trip pays for two full HTML→DOM→HTML cycles. Investigate threading the parsed `Document` from `markdownToHtml` into `preprocessTiptapHtml` (or doing both fix-ups in one pass).
 - [ ] ⚡ `normalizeMarkdown` does 9× split/join. [webview/markdown.config.ts](../webview/markdown.config.ts) — `compactLists`/`unescapeSpecialChars`/`stripAutolinks`/`unescapeBareUrls`/`replaceSafetyEntities`/`fixTaskLists`/`renumberOrderedLists`/`padTables`/`fixTableHeaders` each `md.split("\n")` and `lines.join("\n")`. Refactor to a single line-by-line pass that runs the enabled transforms per line, or pass `string[]` between helpers and join once at the end.
 - [ ] 🛠 `markdownToHtml` swallows stack on failure. [webview/hooks/useEditorState.ts:156](../webview/hooks/useEditorState.ts#L156) sets a status string from `err?.message` but never logs the error object — unlike `htmlToMarkdown` failure ([useEditorState.ts:284](../webview/hooks/useEditorState.ts#L284)) which logs `[better-markdown] htmlToMarkdown failed:`. Add the same `console.error("[better-markdown] markdownToHtml failed:", err)` so the stack survives.
-- [ ] 🛠 `FileReader` rejection loses context. [useEditorState.ts:24-33](../webview/hooks/useEditorState.ts#L24) (`fileToBase64`) does `reader.onerror = reject` → the catch site sees a `ProgressEvent` with no message. Wrap: `reader.onerror = e => reject(new Error(\`FileReader failed: ${e.type}\`))`.
+- [ ] 🛠 `FileReader` rejection loses context. [useEditorState.ts:24-33](../webview/hooks/useEditorState.ts#L24) (`fileToBase64`) does `reader.onerror = reject` → the catch site sees a `ProgressEvent` with no message. Wrap: `reader.onerror = e => reject(new Error(\`FileReader failed: ${e.type}\`))\`.
 - [ ] 🔧 `markdownToDisplayHtml` skips frontmatter. [useVSCodeSync.ts](../webview/hooks/useVSCodeSync.ts) — `markdownToHtml` and `htmlToMarkdown` rely on the caller to `extractFrontmatter` / `prependFrontmatter`, but the diff view ([components/DiffView.tsx](../webview/components/DiffView.tsx)) calls `markdownToDisplayHtml(rawMarkdown)` directly. A `.md` file with YAML frontmatter renders the `---` block as raw markdown content in the diff. Fix: strip + reattach frontmatter in `markdownToDisplayHtml` (or have DiffView do it).
 - [ ] 🧪 `webview/hooks/useVSCodeSync.ts` (DOMParser path) has no direct unit tests. The regex mirror in `test/pipeline.ts` is the only thing exercised in CI, and the two have already drifted on math entity handling (see P2). Add Vitest/jsdom tests that import the real `markdownToHtml` / `htmlToMarkdown` so the DOMParser path is covered.
 - [ ] 🧪 `YouTubeEmbed`/`GitHubEmbed` URL parsers thinly tested. Category P has 3 cases; the parsers handle `youtu.be` short form, `youtube.com/watch?v=…`, `/shorts/`, `/embed/`, query/fragment combos, plus GitHub repo/PR/issue/blob/tree/commit variants. Add edge cases in test-conversions.ts category P.
@@ -80,7 +86,6 @@ Second-pass review focused on refactoring, performance, tests, and type safety (
 - [ ] 🛠 `setTimeout(50)` in `onDidChangeTabs`. [src/extension.ts:217-221](../src/extension.ts#L217) — the 50 ms wait has no comment explaining the VS Code tab-init timing it depends on. Add a one-liner comment.
 - [ ] 🛠 esbuild `.ttf`/`.woff(2)` loader vs `copyCSS()`. [esbuild.js:35-54,88-91](../esbuild.js#L35) — fonts may be both `dataurl`-inlined into the webview bundle and copied to `dist/fonts/`. KaTeX's CSS resolves them via relative URLs (i.e. the copied files); the inline loader may be dead. Verify and drop the loader if so — saves bundle bytes.
 - [ ] 🔧 `renumberOrderedLists` has a `blankLineGap` local variable that's set but never read. [markdown.config.ts:239-266](../webview/markdown.config.ts#L239) — clean up alongside the P1 fence-guard fix.
-
 - [ ] ⚡ Diff panel refreshes while hidden. [src/diffPanel.ts:131-138](../src/diffPanel.ts#L131) re-reads both docs + posts on every matching save even when not visible. Fix: early-return if `!panel.visible`, refresh on `onDidChangeViewState`.
 - [ ] 🎨 H4/H5/H6 reuse H1/H2/H3 icons. [webview/components/EditorBubbleMenu.tsx:45-47](../webview/components/EditorBubbleMenu.tsx#L45) — lucide exports `Heading4/5/6`. Fix: use the correct icons.
 - [ ] 🧹 (partial) `pendingWebviewEdits` not decremented on `applyEdit` failure. [src/provider.ts:314-321](../src/provider.ts#L314) — leaks one echo-suppression per failure (rare; not permanent). Fix: try/catch + decrement.
@@ -96,7 +101,7 @@ Additional findings from the focused security & supply-chain audit (`docs/securi
 
 ### Strategic option (supersedes per-item server fixes)
 
-- [ ] 🚧 🔒 P1: **Remove `betterMarkdown.openInBrowser` command and bundled local server entirely.** <!-- branch: chore/remove-open-in-browser --> Eliminates all dev-server findings (Code Review P0 shell injection + P1 server items + the per-item additions below) in one stroke. Touches: `package.json` (commands), [src/extension.ts:130-193](../src/extension.ts#L130) + [:243](../src/extension.ts#L243) (spawn + CodeLens), [src/provider.ts:271-275](../src/provider.ts#L271) (handler), `server/` (delete dir), [esbuild.js:25-31](../esbuild.js#L25) (serverBuild), `dist/server.js` (artifact), README/CHANGELOG. **Choose between this and per-item server fixes.**
+- [ ] 🚧 🔒 P1: **Remove `betterMarkdown.openInBrowser` command and bundled local server entirely.** Eliminates all dev-server findings (Code Review P0 shell injection + P1 server items + the per-item additions below) in one stroke. Touches: `package.json` (commands), [src/extension.ts:130-193](../src/extension.ts#L130) + [:243](../src/extension.ts#L243) (spawn + CodeLens), [src/provider.ts:271-275](../src/provider.ts#L271) (handler), `server/` (delete dir), [esbuild.js:25-31](../esbuild.js#L25) (serverBuild), `dist/server.js` (artifact), README/CHANGELOG. **Choose between this and per-item server fixes.**
 
 ### Extension-side hardening (independent of openInBrowser decision)
 
@@ -122,6 +127,159 @@ Additional findings from the focused security & supply-chain audit (`docs/securi
 - [ ] 🔧 P2: Bump `mermaid` to `11.14.1+` — resolves `GHSA-6m6c-36f7-fhxh` (Gantt DoS) and transitively `uuid@8.3.2`. Verify with `npm ls uuid`.
 - [ ] 🔧 P2: Bump `ws` to `8.20.1+`.
 
+## Strategic Refactoring Plan (2026-06-02)
+
+Large-scale structural improvements distilled from a "greenfield rewrite?" thought-experiment. **Do not greenfield-rewrite this project** — the existing round-trip test corpus (≈149 cases in `test/test-conversions.ts` + the full-file `test/test.md`) is institutional knowledge that took years to accumulate and is irreplaceable. Joel Spolsky's "Things You Should Never Do" applies.
+
+Instead, execute these phases **in order**, in-place on the existing codebase. Each phase is independently shippable (no half-done branches) and earns back the engineering time it costs within ~2 release cycles. P0–P3 bug fixes and R1–R3 refactors above should run in parallel with these phases.
+
+### 設計目標 (why these phases, in this order)
+
+| 痛みの根源                                              | 現状                                                                                     | 目指す状態                                   |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------- |
+| **3 ファイル同期** ([CLAUDE.md](../CLAUDE.md) "最重要不変条件") | `useVSCodeSync.ts` (DOMParser) と `test/pipeline.ts` (regex 鏡像) を手で揃える                  | 本番コードをそのまま `linkedom` で Node テスト → 鏡像不要 |
+| **4 箇所同期** (設定キー)                                  | `package.json` / `BetterMarkdownSettings` / `DEFAULT_SETTINGS` / `SETTING_KEYS` を手で揃える | 1 つの zod スキーマから全て派生                     |
+| **9 連 split/join** (`normalizeMarkdown`)           | 関数追加が線形に重くなる                                                                           | プラグイン配列 + 1 パスで全変換                      |
+| **`provider.ts` の god-class 化** (405 行)            | メッセージ追加のたびに if/else が伸びる                                                               | 型付きディスパッチテーブル + 責務別モジュール                |
+| **`any` で抜けたメッセージ境界**                              | webview ↔ host のペイロード型がない                                                              | 判別共用体 (`type`) で end-to-end 型検査         |
+
+### Phase A — Test infrastructure overhaul (~1 週間, 単独可能)
+
+**目標**: `test/pipeline.ts` (regex 鏡像) を廃止し、本番 `webview/hooks/useVSCodeSync.ts` を Node 上で直接テストする。これが**全構造改革の前提条件**。
+
+- [ ] 🧪 `linkedom` (または `jsdom`) を devDep に追加し、Node 上で `DOMParser`/`Document`/`Element` が動く環境を整える。`linkedom` を推奨 (jsdom より 30× 軽量、ssr ライクなパフォーマンス)。
+- [ ] 🧪 `test/setup.ts` でグローバルに `globalThis.DOMParser = linkedom.DOMParser` を注入し、`tsx --import ./test/setup.ts` でテスト実行。
+- [ ] 🧪 `test/test-conversions.ts` の `roundtripCase` を **本物の `useVSCodeSync.ts:markdownToHtml`/`htmlToMarkdown` を直接呼ぶ** ように書き換える。`test/pipeline.ts` の `mdToHtml`/`htmlToMd` 呼び出しを全て差し替え。
+- [ ] 🧪 全 149 ケースが緑のまま動くまで linkedom の差分 (特に `DOMParser` の `<table>` 自動補完、`<p><img>` の wrap 挙動) を埋める。差分があれば test 側で吸収。
+- [ ] 🧪 `test/pipeline.ts` を削除。CLAUDE.md の "3 ファイル同期" 不変条件のセクションを "本番コードを直接テストする" に書き換え。
+- [ ] 🧪 `RoundTripOptions` に `settings?: BetterMarkdownSettings` / `baseUri?: string` / `docFolderPath?: string` を追加 (R1 で挙げた項目をここで吸収) → category N と画像相対パスを end-to-end で検証可能に。
+
+**Phase A 完了の判定**: `test/pipeline.ts` が削除され、`npm test` 緑、`test-conversions.ts` から `useVSCodeSync.ts` の関数を直接 import している。**以後 Phase B 以降のテストは linkedom 環境を前提にできる**。
+
+**リスク**: linkedom の DOM 実装が remark-rehype の出力 (例: `<table>` 内の `<tbody>` 自動挿入有無、HTML entity decode のタイミング) でブラウザと微差を出す可能性。発見したら test fixture 側で吸収するか、`happy-dom` に切り替える plan B を持つ。
+
+### Phase B — Settings schema unification (~3 日, Phase A 後)
+
+**目標**: 設定の 4 箇所同期を 1 箇所に。zod スキーマから全てを派生させる。
+
+- [ ] 🎯 `zod` を依存に追加。`webview/settings-schema.ts` に **唯一の真実** として zod スキーマを書く:
+  ```ts
+  export const SettingsSchema = z.object({
+    bullet: z.enum(["-", "*", "+"]).default("-").describe("Bullet list marker"),
+    compactLists: z.boolean().default(true).describe("..."),
+    // ...
+  });
+  export type BetterMarkdownSettings = z.infer<typeof SettingsSchema>;
+  ```
+- [ ] 🎯 `DEFAULT_SETTINGS` を `SettingsSchema.parse({})` で派生させる (`.default()` の自動収集)。
+- [ ] 🎯 `SETTING_KEYS` を `Object.keys(SettingsSchema.shape)` で派生。
+- [ ] 🎯 `package.json` の `contributes.configuration.properties` を **ビルド時に生成**: `zod-to-json-schema` で JSON schema を出力 → `scripts/gen-package-json-config.ts` が `package.json` の該当ブロックを書き換え → `npm run build` の prebuild で実行 + git で diff チェック (CI で drift 検出)。
+- [ ] 🎯 host 側の `readSettings`/`writeSettings` (R1 で抽出予定の `settings-utils.ts`) で **読み取り時に zod parse** → 不正値は default にフォールバック (壊れた `.vscode/settings.json` で拡張が落ちない)。
+- [ ] 🎯 `migrateLegacySettings` も schema 経由で型安全に。
+
+**完了判定**: 設定キー追加が **1 ファイル 1 行** で完了する (zod スキーマに足すだけ)。`package.json` は自動生成 + CI でズレ検知。
+
+**リスク**: VS Code Settings UI のラベル順序が schema の宣言順に依存。スキーマ宣言時に意図した順序で書く。
+
+### Phase C — `normalizeMarkdown` plugin architecture (~1 週間, Phase A 後)
+
+**目標**: 9 連 split/join を 1 パスに。各正規化を独立プラグインに。
+
+- [ ] 🔧 `webview/markdown-normalizers/` ディレクトリを作り、各正規化を以下の形に切り出す:
+  ```ts
+  export interface Normalizer {
+    name: keyof BetterMarkdownSettings;  // or null for always-on
+    apply: (lines: string[], ctx: NormalizerContext) => string[];
+  }
+  ```
+  `NormalizerContext` は `{ inCodeBlock: boolean; mathPlaceholders: Map<...>; settings }` を持ち、全プラグインで共有 → `inCodeBlock` の重複追跡を撲滅 (P1 `renumberOrderedLists` のバグの根本原因)。
+- [ ] 🔧 `normalizeMarkdown(md, settings)` を **`lines = md.split("\n")` 1 回 → 各 normalizer を順次適用 → 最後に join 1 回** の構造に。split/join は 18 回 → 2 回。
+- [ ] 🔧 既存の `compactLists`/`unescapeSpecialChars`/`stripAutolinks`/`unescapeBareUrls`/`replaceSafetyEntities`/`fixTaskLists`/`renumberOrderedLists`/`padTables`/`fixTableHeaders` を 1 プラグインずつ移植 → 各移植で test 緑を維持。
+- [ ] 🔧 fence-tracking ヘルパー (`processOutsideCodeFences` 相当) を `NormalizerContext.eachNonCodeLine(callback)` として API 化 → R2 の "重複ループ撲滅" を内包。
+- [ ] 🔧 移植完了後、`markdown.config.ts` から旧実装を削除。プラグイン順序は `markdown-normalizers/index.ts` の配列で明示。
+
+**完了判定**: 新 normalizer 追加が **1 ファイル新規作成 + index.ts に 1 行追加** で済む。テストは全緑。
+
+**リスク**: 順序依存 (例: `fixTaskLists` は `compactLists` より前) が暗黙だった部分を明示する必要。先に依存関係ドキュメント `markdown-normalizers/ORDER.md` を書いてから移植する。
+
+### Phase D — Typed message protocol (~3 日, Phase B 後)
+
+**目標**: webview ↔ host のメッセージ境界を判別共用体で型検査する。`provider.ts` の god-class を解体。
+
+- [ ] 🎯 `src/messages.ts` (host + webview から import 可) に判別共用体を定義:
+  ```ts
+  export type HostToWebview =
+    | { type: "init"; content: string; baseUri: string; ...settings: BetterMarkdownSettings }
+    | { type: "update"; content: string }
+    | { type: "settingsUpdated"; settings: BetterMarkdownSettings }
+    | { type: "imageUploaded"; requestId: string; src: string }  // P1 で要求された requestId 同梱
+    | { type: "gitDiffResponse"; head: string };
+
+  export type WebviewToHost =
+    | { type: "ready" }
+    | { type: "edit"; content: string }
+    | { type: "uploadImage"; requestId: string; name: string; dataBase64: string }
+    | { type: "openLink"; href: string }
+    | ...;
+  ```
+- [ ] 🎯 host 側に `handlers: { [K in WebviewToHost["type"]]: (msg: Extract<WebviewToHost, { type: K }>, ctx) => Promise<void> }` を持たせ、`onDidReceiveMessage` の中身を `handlers[msg.type]?.(msg, ctx)` 一行に。
+- [ ] 🎯 各ハンドラを `src/handlers/` 配下に 1 ファイル 1 ハンドラで切り出し (`handle-upload-image.ts`, `handle-open-link.ts` …)。`provider.ts` 405 行 → 100 行台。
+- [ ] 🎯 webview 側も `vscodeApi.postMessage` を `postMessage(msg: WebviewToHost)` のラッパーに置き換え → typo がコンパイルエラーに。
+- [ ] 🎯 `server/index.ts` の WebSocket ハンドラも同じ `WebviewToHost` 型を使う → host と server の挙動が型レベルで一致。
+
+**完了判定**: `provider.ts` < 150 行。ハンドラ追加が単一ファイル追加で済む。新メッセージは型検査で全エンドポイントの実装漏れを検知。
+
+**リスク**: VS Code の `Webview.postMessage` は `any` を受けるので、API 自体の型は変えられない。ラッパー関数で吸収する。
+
+### Phase E — Conversion layer extraction (~1 週間, Phase A + C 後)
+
+**目標**: 変換パイプラインを単独モジュールに切り出す。Phase D まで終わると "ほぼ独立" になっているので、ここまで来たら追加コストは小さい。
+
+- [ ] 🔧 `webview/conversion/` ディレクトリ (現 `useVSCodeSync.ts` + `markdown.config.ts` + `conversion-utils.ts` + `markdown-normalizers/`) を内部的に **「ブラウザでも Node でも動く純粋ライブラリ」** として整理:
+  - `DOMParser` を `globalThis.DOMParser` 経由で参照 (Phase A の linkedom 注入で Node でも動く)
+  - VS Code / Tiptap / React への依存をゼロに (現状ほぼゼロ; baseUri 文字列を引数で受けるだけ)
+  - 公開 API は `markdownToHtml(md, opts?)` / `htmlToMarkdown(html, opts?)` / `markdownToDisplayHtml(md, opts?)` の 3 つに集約
+- [ ] 🔧 単独ビルドターゲット `dist/conversion.js` を追加 (esbuild の 4 つ目のバンドル)。`server/index.ts` がこれを require できる形に。
+- [ ] 🔧 サーバーや将来の CLI/preview ツールから再利用可能に。`docs/ARCHITECTURE.md` の "3. 変換パイプライン" セクションを更新。
+
+**完了判定**: `webview/conversion/` が `webview/components/`, `webview/extensions/` から import されているが、逆向きの依存が**ゼロ** (`grep`で確認)。
+
+**リスク**: 既存のコンパイル設定変更で `node_modules` 解決が壊れる可能性。Phase A の Node 実行環境が固まっていれば検証は容易。
+
+### Phase F — Monorepo split (オプション, Phase E 後)
+
+**目標**: `pnpm workspaces` で `@markdown-studio/conversion`, `@markdown-studio/tiptap-md`, `@markdown-studio/editor-app`, `@markdown-studio/vscode-extension`, `@markdown-studio/web-server` の 5 パッケージに分割。
+
+- [ ] 🚧 **これは「やる価値があるか」を Phase E 完了時点で再評価する**。conversion パッケージを npm 公開する具体的需要が無いなら、見送り推奨。monorepo はビルド設定・CI・依存管理の複雑さを永続的に追加する。
+- [ ] 🚧 やる場合: Phase E の conversion 抽出が前提。`tiptap-md` (拡張) → `editor-app` (React UI) → `vscode-extension` (アダプタ) の順で薄く剥がす。
+- [ ] 🚧 release pipeline は `vsce` が monorepo 内の workspace 解決をどう扱うか先に検証 ([vscode-vsce#421](https://github.com/microsoft/vscode-vsce/issues/421) 周辺)。
+
+**完了判定**: 各パッケージの責務が `README.md` 1 段落で説明可能。`vscode-extension` パッケージは `< 500 LoC`。
+
+**リスク**: 最も高い。Phase A–E で 80% の構造改善は達成済みなので、F なしでも十分プロフェッショナルなコードベース。
+
+### 並走可能な雑務 (Phase A 完了が前提)
+
+- [ ] 🛠 Storybook を `webview/components/` 用に導入 → `DiffView`, `EditorBubbleMenu`, `SettingsPanel`, `TableControls` を VS Code 起動なしで反復開発できる。Phase A の linkedom 環境とは独立。
+- [ ] 🛠 Vitest を `tsx` の代わりに導入 (Phase A 完了後)。`vitest --coverage` でカバレッジ 30% → 70% を可視化。test-conversions の `eq`/`assert`/`roundtripCase` を vitest の `it`/`expect` にマッピングする shim を書けば移植コストは低い。
+- [ ] 🛠 `e2e/` ディレクトリで `@vscode/test-electron` ベースの E2E テストを 5–10 ケース足す → `provider.ts` の WorkspaceEdit ロジックや `migrateLegacySettings` のような単体テスト不能な領域をカバー。
+
+### Phase の進め方 (recommended sequencing)
+
+```
+週 1: Phase A (test infra)              ← 全ての前提
+週 2: R1 の 6 項目を着手 (並行)
+週 3: Phase B (settings) + Phase C 着手  ← 独立、並行可
+週 4: Phase C 完了
+週 5: Phase D (message protocol)         ← Phase B 後
+週 6: Phase E (conversion extraction)
+─────────────────────────────────────
+ここで一度立ち止まり、Phase F の必要性を評価する。
+不要なら R2/R3 と P0–P3 残務に集中。
+```
+
+**強い推奨**: Phase A 完了前に Phase B–E の作業を始めないこと。3 ファイル同期問題を抱えたまま大規模リファクタすると、テストが嘘をつくため回帰が見えない。
+
 ### Privacy
 
 - [ ] 🎨 P3: Drop YouTube thumbnail external fetch (`img.youtube.com`) — replace with play-icon placeholder. Pairs with CSP `img-src` tightening above. [webview/extensions/YouTubeEmbed.tsx:144-152](../webview/extensions/YouTubeEmbed.tsx#L144).
@@ -145,7 +303,7 @@ Additional findings from the focused security & supply-chain audit (`docs/securi
 - [x] Task list checkbox round-trip (GFM ↔ Tiptap taskItem conversion)
 - [x] Image separation (each image in its own `<p>` block)
 - [x] Fix `\|` double-escape in code spans within table cells (use negative lookbehind)
-- [x] Unescape `\_` around Unicode word chars (&#x3B2;_&#x6B;l, &#x65E5;_&#x672C;) — use `\p{L}` instead of `\w`
+- [x] Unescape `\_` around Unicode word chars (&#x3B2;_<!---->_<!---->kl, &#x65E5;_<!---->_<!---->_&#x672C;) — use `\p{L}` instead of `\w`
 - [x] `compactLists` preserves blank lines around indented paragraphs (verified via test coverage)
 - [x] Git diffs work — non-file URIs render read-only in Tiptap with a badge
 - [x] Copy as markdown source — selection serialised to .md on Cmd+C / Cmd+X
@@ -171,14 +329,14 @@ Additional findings from the focused security & supply-chain audit (`docs/securi
 
 ## Remaining (legacy backlog — validated 2026-06-02)
 
-- [ ] **Publishing automation** *(partial)* — core auto-publish via [.github/workflows/publish.yml](../.github/workflows/publish.yml) is implemented on `v*` tag. Remaining細目 (`tsx`/`ovsx` to devDeps, `ci.yml` for PR validation) are now split as Code Review Findings P1 items above. Original notes preserved:
+- [ ] **Publishing automation** _(partial)_ — core auto-publish via [.github/workflows/publish.yml](../.github/workflows/publish.yml) is implemented on `v*` tag. Remaining細目 (`tsx`/`ovsx` to devDeps, `ci.yml` for PR validation) are now split as Code Review Findings P1 items above. Original notes preserved:
   - **One-time human setup**: (1) Azure DevOps PAT with scope `Marketplace → Manage` → repo secret `VSCE_PAT`; (2) open-vsx.org access token → repo secret `OVSX_PAT`.
   - **Release flow once wired**: bump `package.json` version + `CHANGELOG.md` → commit → `git tag v2.0.1 && git push --tags` → workflow runs, both marketplaces update within ~5 minutes.
 - [ ] Claude Code rich diff integration — blocked on Claude Code exposing proposed content before acceptance (see SPEC.md § Claude Code Integration)
 - [ ] TOC should highlight diffed headings (added/removed/changed) when diff view is active
 - [ ] Claude Code integration — live diff in the rich editor when Claude edits a .md file; show accept (tick) / reject (cross) icons inline so the user can review and apply suggestions directly without leaving the rich editor (same blocker as above)
 - [ ] esc. key should highlight the entire line just like notion
-- [ ] make sure cursor does not vanish/gets autofocused after navigating inside/outside of katex *(partial)* — `cbe8e70` covers `Ctrl+A select-all`; bidirectional click-in/out paths may still drop focus
+- [ ] make sure cursor does not vanish/gets autofocused after navigating inside/outside of katex _(partial)_ — `cbe8e70` covers `Ctrl+A select-all`; bidirectional click-in/out paths may still drop focus
 - [ ] ⚠️ Bullet points nested inside checkboxes — **要ブラウザ検証**: `TaskItem.configure({ nested: true })` is enabled at [webview/App.tsx:70](../webview/App.tsx#L70) and no failing round-trip test exists. Bug may already be fixed; verify in browser before keeping or closing.
 - [ ] Preserve inline sibling images side-by-side (e.g. README badge rows). Right now consecutive `![...]` on one line get split into separate paragraphs on round-trip, and raw `<p><img/>...</p>` HTML blocks are dropped entirely — so there's no way to keep a row of shields.io badges side-by-side through the rich editor. Fix in `webview/hooks/useVSCodeSync.ts` + `test/pipeline.ts`; add a test case in category I (images).
 - [ ] Fix `docs/SPEC.md:209-212` numbered list — currently restarts at `1.` mid-list (should be `6.`–`9.`). Likely same root cause as `renumberOrderedLists` in Code Review P1; verify both are fixed together. Repro diff:
