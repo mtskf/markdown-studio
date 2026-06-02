@@ -12,9 +12,6 @@ Legend / notes preserved from the original sections:
 
 ### Bug / Code Review — P1 High
 
-- [ ] 🚧 🐛 Image-upload reply has no request-id or timeout. <!-- branch: fix/image-upload-request-id-timeout --> [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
-- [x] ⚙️ No CI on PR / push — added [ci.yml](../.github/workflows/ci.yml) on `pull_request` / `push` (main) running `npm ci && npm test && node esbuild.js`.
-
 ### Security — Extension hardening (P1)
 
 - [ ] 🔒 P1: `uploadImage` accepts any extension/filename — webview-controlled. Can overwrite `~/.bashrc`, `~/.command` files, etc. via malicious `.md` postMessage. [src/provider.ts:282-309](../src/provider.ts#L282). Fix: whitelist extensions (`png|jpg|jpeg|gif|webp|svg`) + content-hash filenames + size cap.
@@ -94,7 +91,6 @@ Legend / notes preserved from the original sections:
 #### Phase B — Settings schema unification (~3 日, Phase A 後)
 
 - [ ] 🎯 `zod` を依存に追加。`webview/settings-schema.ts` に **唯一の真実** として zod スキーマを書く:
-
   ```ts
   export const SettingsSchema = z.object({
     bullet: z.enum(["-", "*", "+"]).default("-").describe("Bullet list marker"),
@@ -103,7 +99,6 @@ Legend / notes preserved from the original sections:
   });
   export type BetterMarkdownSettings = z.infer<typeof SettingsSchema>;
   ```
-
 - [ ] 🎯 `DEFAULT_SETTINGS` を `SettingsSchema.parse({})` で派生させる (`.default()` の自動収集)。
 - [ ] 🎯 `SETTING_KEYS` を `Object.keys(SettingsSchema.shape)` で派生。
 - [ ] 🎯 `package.json` の `contributes.configuration.properties` を **ビルド時に生成**: `zod-to-json-schema` で JSON schema を出力 → `scripts/gen-package-json-config.ts` が `package.json` の該当ブロックを書き換え → `npm run build` の prebuild で実行 + git で diff チェック (CI で drift 検出)。
@@ -113,14 +108,12 @@ Legend / notes preserved from the original sections:
 #### Phase C — `normalizeMarkdown` plugin architecture (~1 週間, Phase A 後)
 
 - [ ] 🔧 `webview/markdown-normalizers/` ディレクトリを作り、各正規化を以下の形に切り出す:
-
   ```ts
   export interface Normalizer {
     name: keyof BetterMarkdownSettings;  // or null for always-on
     apply: (lines: string[], ctx: NormalizerContext) => string[];
   }
   ```
-
   `NormalizerContext` は `{ inCodeBlock: boolean; mathPlaceholders: Map<...>; settings }` を持ち、全プラグインで共有 → `inCodeBlock` の重複追跡を撲滅 (P1 `renumberOrderedLists` のバグの根本原因)。
 - [ ] 🔧 `normalizeMarkdown(md, settings)` を **`lines = md.split("\n")` 1 回 → 各 normalizer を順次適用 → 最後に join 1 回** の構造に。split/join は 18 回 → 2 回。
 - [ ] 🔧 既存の `compactLists`/`unescapeSpecialChars`/`stripAutolinks`/`unescapeBareUrls`/`replaceSafetyEntities`/`fixTaskLists`/`renumberOrderedLists`/`padTables`/`fixTableHeaders` を 1 プラグインずつ移植 → 各移植で test 緑を維持。
@@ -130,7 +123,6 @@ Legend / notes preserved from the original sections:
 #### Phase D — Typed message protocol (~3 日, Phase B 後)
 
 - [ ] 🎯 `src/messages.ts` (host + webview から import 可) に判別共用体を定義:
-
   ```ts
   export type HostToWebview =
     | { type: "init"; content: string; baseUri: string; ...settings: BetterMarkdownSettings }
@@ -146,7 +138,6 @@ Legend / notes preserved from the original sections:
     | { type: "openLink"; href: string }
     | ...;
   ```
-
 - [ ] 🎯 host 側に `handlers: { [K in WebviewToHost["type"]]: (msg: Extract<WebviewToHost, { type: K }>, ctx) => Promise<void> }` を持たせ、`onDidReceiveMessage` の中身を `handlers[msg.type]?.(msg, ctx)` 一行に。
 - [ ] 🎯 各ハンドラを `src/handlers/` 配下に 1 ファイル 1 ハンドラで切り出し (`handle-upload-image.ts`, `handle-open-link.ts` …)。`provider.ts` 405 行 → 100 行台。
 - [ ] 🎯 webview 側も `vscodeApi.postMessage` を `postMessage(msg: WebviewToHost)` のラッパーに置き換え → typo がコンパイルエラーに。
@@ -259,6 +250,7 @@ Legend / notes preserved from the original sections:
 
 ### High Priority — Done
 
+- [x] ⚙️ No CI on PR / push — added [ci.yml](../.github/workflows/ci.yml) on `pull_request` / `push` (main) running `npm ci && npm test && node esbuild.js`.
 - [x] ⚙️ `tsx` not in deps/devDeps/lockfile. [package.json](../package.json) `npm test` uses `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
 - [x] 🚩 ✨ **TOC panel: collapsed by default (or remember last state).** Currently [webview/components/TableOfContents.tsx:37](../webview/components/TableOfContents.tsx#L37) initializes `useState(false)` for `collapsed`, so the sidebar is always open on every fresh editor open — there's no setting and no persistence. Desired: TOC should default to collapsed (panel hidden, expand button visible). Two paths: (a) add a `markdownStudio.tocDefaultCollapsed: boolean` setting wired through the usual 4 places (`package.json` `contributes.configuration`, `BetterMarkdownSettings`, `DEFAULT_SETTINGS`, `SETTING_KEYS` in [webview/settings.ts](../webview/settings.ts)) and read it as the `useState` initial; (b) persist the user's last collapsed state per-workspace via `vscodeApi.postMessage` → `globalState` (similar to `betterMarkdown.headingFolds`) so the panel remembers the last manual toggle. (a) is the literal ask; (b) is the more polite UX and worth considering as the primary fix.
 - [x] 🚩 🐛 **Rich editor doesn't pick up external `.md` changes.** When the backing file is modified outside the webview (git pull, `/ship` auto-commits, another editor, format-on-save from a different tool, etc.), the open Rich editor tab keeps rendering the stale content until the file is manually closed and reopened. The native source editor auto-refreshes; the Rich editor should mirror that.
