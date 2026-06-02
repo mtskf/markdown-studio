@@ -386,11 +386,12 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
       if (webviewPanel.active) this.activeWebview = webview;
       // Re-sync on becoming visible. External edits (git pull, peer
       // editors, format-on-save extensions) can update the document
-      // while the webview is hidden — if our `update` post landed
-      // before the webview's React app re-mounted, it was dropped.
-      // Comparing against `lastSentContent` skips no-op posts, and the
-      // `pendingWebviewEdits` guard avoids echoing the webview's own
-      // in-flight edit back to it.
+      // while the webview is hidden — VS Code may drop `postMessage`s
+      // sent to a non-visible webview, so the docChange handler
+      // intentionally does not advance `lastSentContent` for hidden
+      // posts. Comparing against `lastSentContent` skips no-op posts,
+      // and the `pendingWebviewEdits` guard avoids echoing the
+      // webview's own in-flight edit back to it.
       if (!webviewPanel.visible) return;
       if (pendingWebviewEdits > 0) return;
       const current = document.getText();
@@ -409,11 +410,18 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
           return;
         }
 
-        lastSentContent = document.getText();
+        const current = document.getText();
         webview.postMessage({
           type: "update",
-          content: lastSentContent,
+          content: current,
         });
+        // Only advance the snapshot when we know the post can land — for
+        // a hidden webview the message may be dropped, and advancing
+        // would cause the view-state resync to incorrectly see no drift
+        // when the panel becomes visible, leaving the editor stale.
+        if (webviewPanel.visible) {
+          lastSentContent = current;
+        }
       },
     );
 
