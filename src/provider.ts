@@ -4,6 +4,7 @@ import { SETTING_KEYS } from "../webview/settings";
 
 const CONFIG_NAMESPACE = "markdownStudio";
 const CURSORS_KEY = "betterMarkdown.cursors";
+const HEADING_FOLDS_KEY = "betterMarkdown.headingFolds";
 const CONSENT_SHOWN_KEY = "betterMarkdown.consentShown";
 
 /**
@@ -72,6 +73,38 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
       {};
     all[filePath] = position;
     await this.context.globalState.update(CURSORS_KEY, all);
+  }
+
+  /**
+   * Folded-heading indices keyed per file. Index-based (same scheme as the
+   * TOC and StickyHeadings) — survives a file reload but not heading
+   * insertion/removal above the saved index. Round-trip markdown is
+   * untouched; this state lives only in globalState.
+   */
+  private loadHeadingFolds(filePath: string): number[] {
+    const all =
+      this.context.globalState.get<Record<string, number[]>>(
+        HEADING_FOLDS_KEY,
+        {},
+      ) ?? {};
+    return all[filePath] ?? [];
+  }
+
+  private async saveHeadingFolds(
+    filePath: string,
+    folds: number[],
+  ): Promise<void> {
+    const all =
+      this.context.globalState.get<Record<string, number[]>>(
+        HEADING_FOLDS_KEY,
+        {},
+      ) ?? {};
+    if (folds.length === 0) {
+      delete all[filePath];
+    } else {
+      all[filePath] = folds;
+    }
+    await this.context.globalState.update(HEADING_FOLDS_KEY, all);
   }
 
   /**
@@ -219,6 +252,7 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
           isReadonly,
           settings: readSettings(),
           cursorPosition: this.loadCursor(document.uri.fsPath),
+          headingFolds: this.loadHeadingFolds(document.uri.fsPath),
         });
         // Fire the first-run setup prompt only after the webview has
         // signalled `ready` — posting earlier would land before the
@@ -232,6 +266,13 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
           document.uri.scheme === "file"
         ) {
           await this.saveCursor(document.uri.fsPath, msg.position);
+        }
+      } else if (msg.type === "saveHeadingFolds") {
+        if (Array.isArray(msg.folds) && document.uri.scheme === "file") {
+          const folds = (msg.folds as unknown[]).filter(
+            (n): n is number => typeof n === "number" && Number.isInteger(n),
+          );
+          await this.saveHeadingFolds(document.uri.fsPath, folds);
         }
       } else if (msg.type === "saveSettings") {
         await writeSettings(msg.settings as Record<string, unknown>);
