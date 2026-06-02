@@ -131,20 +131,23 @@ function GitHubEmbedView({
     setUrl(node.attrs.url || "");
   }, [node.attrs.url]);
 
-  const save = useCallback(() => {
+  const save = useCallback((): string => {
     const trimmed = url.trim();
     if (!trimmed) {
       deleteNode();
-      return;
+      return "";
     }
     updateAttributes({ url: trimmed });
     setEditing(false);
+    return trimmed;
   }, [url, updateAttributes, deleteNode]);
 
   const exit = useCallback(
     (after: boolean) => {
-      save();
-      if (typeof getPos === "function" && editor && node.attrs.url) {
+      // updateAttributes is async — node.attrs.url is still stale here, so
+      // guard on the value save() actually committed, not the node snapshot.
+      const trimmed = save();
+      if (typeof getPos === "function" && editor && trimmed) {
         const base = getPos();
         const pos = after ? base + node.nodeSize : base;
         requestAnimationFrame(() => {
