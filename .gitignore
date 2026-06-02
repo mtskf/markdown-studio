@@ -31,3 +31,6 @@ Thumbs.db
 
 # /review-cycle workspace (skill-internal scratch)
 .review-cycle/
+
+# Ghostty tab tracker (set by setup-worktree.sh, used by ship pipeline auto-close)
+.ghostty-tab-id
