@@ -8,6 +8,22 @@ const CUSTOM_EDITOR_VIEW_TYPE = "betterMarkdown.editor";
 const LEGACY_SETTINGS_KEY = "betterMarkdown.settings";
 const MIGRATION_DONE_KEY = "betterMarkdown.configMigrated";
 
+function isMarkdownPath(uri: vscode.Uri): boolean {
+  return uri.path.toLowerCase().endsWith(".md");
+}
+
+function diffPairKey(original: vscode.Uri, modified: vscode.Uri): string {
+  return `${original.toString()} ${modified.toString()}`;
+}
+
+// Diff pairs we've already reopened via vscode.diff(..., { override: "default" }).
+// The reopen creates a fresh TabInputTextDiff for the same URI pair, which fires
+// onDidChangeTabs again — without this guard we'd loop forever. Each key is
+// consumed once: the first event is the original (bad) tab we want to replace,
+// the second event is our own reopen and is skipped + cleared so future opens
+// of the same pair are processed normally.
+const recentlyForcedDiffPairs = new Set<string>();
+
 /**
  * One-shot migration: pre-2.3.5 builds stored settings in globalState
  * under `betterMarkdown.settings`. We now own a `contributes.configuration`
@@ -161,23 +177,73 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  // Close non-file custom editor tabs (git:, scm: schemes).  When VS Code
-  // opens a diff for a .md file, the custom editor intercepts both sides and
-  // spawns read-only panes with git:/scm: URIs.  These render in the rich
-  // editor but can't be edited, so we auto-close them.
+  // Tab routing:
+  //   Case A — a diff editor opened on markdown. Because our customEditors
+  //   contribution has priority "default" for *.md, BOTH panes of a markdown
+  //   diff render in the rich editor webview, so the actual line-by-line diff
+  //   is hidden. Force the native text diff editor by reopening with override
+  //   "default" so the editor resolver bypasses custom editors.
   //
-  // NOTE: we investigated replacing these with the rich diff panel
-  // (BetterMarkdownDiffPanel) for Claude Code integration, but Claude Code
-  // writes to disk only AFTER the user accepts in the CLI — before that the
-  // proposed content is internal to Claude Code with no extension API to
-  // read it.  onDidChangeTextDocument fires post-acceptance (too late for
-  // review) and onDidChangeTabs sees only a TabInputCustom, not a
-  // TabInputTextDiff.  Pre-acceptance rich diff requires Claude Code to
+  //   Case B — a custom editor tab for our viewType with a non-file scheme
+  //   (git:, vscode-scm:, ...). Pre-existing safety net for cases where a
+  //   non-file URI is opened standalone (e.g. from the command palette or a
+  //   third-party extension) and ends up in our read-only rich-editor pane.
+  //   With Case A handling SCM-tree clicks, these are now rare but still
+  //   possible.
+  //
+  // Historical note: we investigated replacing the closed git:/scm: tabs with
+  // the rich diff panel (BetterMarkdownDiffPanel) for Claude Code integration,
+  // but Claude Code writes to disk only AFTER the user accepts in the CLI —
+  // before that the proposed content is internal to Claude Code with no
+  // extension API to read it. onDidChangeTextDocument fires post-acceptance
+  // (too late for review) and onDidChangeTabs sees only a TabInputCustom, not
+  // a TabInputTextDiff. Pre-acceptance rich diff requires Claude Code to
   // expose proposed content to extensions.
   context.subscriptions.push(
     vscode.window.tabGroups.onDidChangeTabs((e) => {
       for (const tab of e.opened) {
         const input = tab.input;
+
+        if (input instanceof vscode.TabInputTextDiff) {
+          if (
+            !isMarkdownPath(input.original) &&
+            !isMarkdownPath(input.modified)
+          ) {
+            continue;
+          }
+          const key = diffPairKey(input.original, input.modified);
+          if (recentlyForcedDiffPairs.has(key)) {
+            // This is the reopen we just triggered — let it stay and clear
+            // the mark so a later user-initiated open of the same diff is
+            // processed.
+            recentlyForcedDiffPairs.delete(key);
+            continue;
+          }
+          recentlyForcedDiffPairs.add(key);
+          const original = input.original;
+          const modified = input.modified;
+          const title = tab.label;
+          setTimeout(async () => {
+            try {
+              await vscode.commands.executeCommand(
+                "vscode.diff",
+                original,
+                modified,
+                title,
+                // `override` is part of the internal _workbench.diff command's
+                // IResourceDiffEditorInput.options, not the public
+                // TextDocumentShowOptions type — cast to satisfy the type.
+                { override: "default" } as vscode.TextDocumentShowOptions,
+              );
+              await vscode.window.tabGroups.close(tab);
+            } catch {
+              // Reopen failed — drop the guard so a future attempt isn't masked.
+              recentlyForcedDiffPairs.delete(key);
+            }
+          }, 50);
+          continue;
+        }
+
         if (
           input instanceof vscode.TabInputCustom &&
           input.viewType === CUSTOM_EDITOR_VIEW_TYPE &&
