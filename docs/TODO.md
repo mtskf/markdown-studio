@@ -196,6 +196,7 @@ Legend / notes preserved from the original sections:
 ### Bug / Code Review — P3 Low / cleanup
 
 - [ ] ⚡ `TableControls` triple-subscribes. [webview/components/TableControls.tsx:82-84](../webview/components/TableControls.tsx#L82) registers `selectionUpdate`+`update`+`transaction`; `transaction` is a superset → redundant reflow while editing in a table. Fix: keep only `transaction`.
+- [ ] 🧹 `blankLineGap` is a dead variable in `renumberOrderedLists`. [webview/markdown.config.ts:249](../webview/markdown.config.ts#L249) is written in four places (initialized, reset on fence, reset on numbered item, reset on non-list break, and set true on blank-in-list) but never read to influence a branch. Pre-dates the 2.3.10 fence-guard fix; left untouched to keep that PR scope clean. Fix: delete the variable and its writers.
 
 ### Security — Extension hardening (P3)
 

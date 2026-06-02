@@ -239,7 +239,8 @@ function fixTaskLists(md: string): string {
  * Skips lines inside fenced code blocks (incl. the `btrmk-math-block`
  * placeholder fence), where numbered lines are literal content, not list
  * items. Mirrors the inCodeBlock guard used by sibling normalizers
- * (unescapeSpecialChars, stripAutolinks, compactLists, ...).
+ * (unescapeSpecialChars, stripAutolinks, unescapeBareUrls,
+ * replaceSafetyEntities, compactLists).
  */
 function renumberOrderedLists(md: string): string {
   const lines = md.split("\n");
