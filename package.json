@@ -122,6 +122,10 @@
         {
           "command": "betterMarkdown.openDiff",
           "when": "resourceExtname == .md || isInDiffEditor"
+        },
+        {
+          "command": "betterMarkdown.claudeCodeInsertAtMentioned",
+          "when": "activeCustomEditorId == betterMarkdown.editor"
         }
       ],
       "editor/title": [
