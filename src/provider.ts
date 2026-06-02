@@ -1,46 +1,17 @@
 import * as vscode from "vscode";
 import * as path from "path";
-import { SETTING_KEYS } from "../webview/settings";
+import {
+  CONFIG_NAMESPACE,
+  SETTING_KEYS,
+  readSettings,
+  writeSettings,
+} from "./settings-utils";
 import { prepareImageUpload } from "./uploadImage";
 
-const CONFIG_NAMESPACE = "markdownStudio";
 const CURSORS_KEY = "betterMarkdown.cursors";
 const HEADING_FOLDS_KEY = "betterMarkdown.headingFolds";
 const TOC_COLLAPSED_KEY = "betterMarkdown.tocCollapsed";
 const CONSENT_SHOWN_KEY = "betterMarkdown.consentShown";
-
-/**
- * Read every known setting from VS Code config into a plain object the
- * webview can fold into `mergeSettings()`. Reading per-key (instead of
- * `config.get` on the whole namespace) keeps the payload limited to keys
- * we actually own — drive-by entries from other extensions or stale
- * configs don't leak through.
- */
-function readSettings(): Record<string, unknown> {
-  const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
-  const out: Record<string, unknown> = {};
-  for (const key of SETTING_KEYS) {
-    const value = config.get(key);
-    if (value !== undefined) out[key] = value;
-  }
-  return out;
-}
-
-/**
- * Persist a settings payload from the webview's in-app panel by writing
- * each changed key to User scope. We diff against the current effective
- * value to avoid kicking off 16 `onDidChangeConfiguration` events when
- * only one toggle moved.
- */
-async function writeSettings(next: Record<string, unknown>): Promise<void> {
-  const config = vscode.workspace.getConfiguration(CONFIG_NAMESPACE);
-  for (const key of SETTING_KEYS) {
-    if (!Object.prototype.hasOwnProperty.call(next, key)) continue;
-    const incoming = next[key];
-    if (config.get(key) === incoming) continue;
-    await config.update(key, incoming, vscode.ConfigurationTarget.Global);
-  }
-}
 
 export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
   constructor(readonly context: vscode.ExtensionContext) {

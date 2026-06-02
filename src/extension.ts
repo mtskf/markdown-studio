@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import { BetterMarkdownProvider } from "./provider";
 import { BetterMarkdownDiffPanel } from "./diffPanel";
-import { SETTING_KEYS } from "../webview/settings";
+import { SETTING_KEYS } from "./settings-utils";
 
 const CUSTOM_EDITOR_VIEW_TYPE = "betterMarkdown.editor";
 const LEGACY_SETTINGS_KEY = "betterMarkdown.settings";
