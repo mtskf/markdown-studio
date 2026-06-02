@@ -93,6 +93,42 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Bridge Cmd+Opt+K from the rich (custom) editor → Claude Code.
+  // Claude Code's `claude-code.insertAtMentioned` reads
+  // `vscode.window.activeTextEditor` directly, and our webview is not a
+  // text editor, so we focus the backing TextDocument first (with an
+  // empty selection so Claude Code emits `@<relpath>` rather than a line
+  // range), then invoke the upstream command. MVP: file-level mention only.
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "betterMarkdown.claudeCodeInsertAtMentioned",
+      async () => {
+        const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab;
+        const input = activeTab?.input;
+        if (
+          !(input instanceof vscode.TabInputCustom) ||
+          input.viewType !== CUSTOM_EDITOR_VIEW_TYPE ||
+          input.uri.scheme !== "file"
+        ) {
+          return;
+        }
+        try {
+          await vscode.window.showTextDocument(input.uri, {
+            preview: false,
+            preserveFocus: false,
+            selection: new vscode.Range(0, 0, 0, 0),
+          });
+          await vscode.commands.executeCommand(
+            "claude-code.insertAtMentioned",
+          );
+        } catch {
+          // Claude Code may not be installed; swallow silently so the
+          // keystroke is a no-op, matching upstream behavior.
+        }
+      },
+    ),
+  );
+
   // Factory reset — wipes all settings + the first-run consent flag so
   // settings revert to defaults and the welcome modal fires again on
   // the next file open. Confirms before applying.

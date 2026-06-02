@@ -90,6 +90,11 @@
         "command": "betterMarkdown.factoryReset",
         "title": "Factory Reset Settings",
         "category": "Markdown Studio"
+      },
+      {
+        "command": "betterMarkdown.claudeCodeInsertAtMentioned",
+        "title": "Insert @-Mention of Current File into Claude Code",
+        "category": "Markdown Studio"
       }
     ],
     "keybindings": [
@@ -104,6 +109,12 @@
         "key": "ctrl+f",
         "mac": "cmd+f",
         "when": "activeCustomEditorId == betterMarkdown.editor"
+      },
+      {
+        "command": "betterMarkdown.claudeCodeInsertAtMentioned",
+        "key": "ctrl+alt+k",
+        "mac": "cmd+alt+k",
+        "when": "activeCustomEditorId == betterMarkdown.editor"
       }
     ],
     "menus": {
@@ -111,6 +122,10 @@
         {
           "command": "betterMarkdown.openDiff",
           "when": "resourceExtname == .md || isInDiffEditor"
+        },
+        {
+          "command": "betterMarkdown.claudeCodeInsertAtMentioned",
+          "when": "activeCustomEditorId == betterMarkdown.editor"
         }
       ],
       "editor/title": [
