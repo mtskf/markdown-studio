@@ -22,10 +22,6 @@ Legend / notes preserved from the original sections:
 
 - [ ] 🔒 P1: `uploadImage` accepts any extension/filename — webview-controlled. Can overwrite `~/.bashrc`, `~/.command` files, etc. via malicious `.md` postMessage. [src/provider.ts:282-309](../src/provider.ts#L282). Fix: whitelist extensions (`png|jpg|jpeg|gif|webp|svg`) + content-hash filenames + size cap.
 
-### Security — Supply chain (P1)
-
-- [ ] 🔧 P1: Replace `diff2html` + transitive `@profoundlogic/hogan` (new fork created 2025-10-08) with `jsdiff`-based renderer in [webview/components/DiffView.tsx](../webview/components/DiffView.tsx). ~250 LoC. Removes 1 direct + 1 high-risk transitive dep.
-
 ### Refactoring — R1 High (low-effort, high-leverage)
 
 - [ ] 🔧 `readSettings` / `writeSettings` duplicated verbatim across host files. [src/provider.ts:16-43](../src/provider.ts#L16) and [src/diffPanel.ts:7-32](../src/diffPanel.ts#L7) hold identical implementations (read each known key, diff-then-update on write). Extract to `src/settings-utils.ts` and import from both — keeps writes one-source-of-truth, ready for any future write-path additions.
@@ -46,6 +42,10 @@ Legend / notes preserved from the original sections:
 - [ ] 🧪 全 149 ケースが緑のまま動くまで linkedom の差分 (特に `DOMParser` の `<table>` 自動補完、`<p><img>` の wrap 挙動) を埋める。差分があれば test 側で吸収。
 - [ ] 🧪 `test/pipeline.ts` を削除。CLAUDE.md の "3 ファイル同期" 不変条件のセクションを "本番コードを直接テストする" に書き換え。
 - [ ] 🧪 `RoundTripOptions` に `settings?: BetterMarkdownSettings` / `baseUri?: string` / `docFolderPath?: string` を追加 (R1 で挙げた項目をここで吸収) → category N と画像相対パスを end-to-end で検証可能に。
+
+### Security — Supply chain (P1)
+
+- [ ] 🔧 P1: Replace `diff2html` + transitive `@profoundlogic/hogan` (new fork created 2025-10-08) with `jsdiff`-based renderer in [webview/components/DiffView.tsx](../webview/components/DiffView.tsx). ~250 LoC. Removes 1 direct + 1 high-risk transitive dep.
 
 ## Medium Priority
 
@@ -97,6 +97,7 @@ Legend / notes preserved from the original sections:
 #### Phase B — Settings schema unification (~3 日, Phase A 後)
 
 - [ ] 🎯 `zod` を依存に追加。`webview/settings-schema.ts` に **唯一の真実** として zod スキーマを書く:
+
   ```ts
   export const SettingsSchema = z.object({
     bullet: z.enum(["-", "*", "+"]).default("-").describe("Bullet list marker"),
@@ -105,6 +106,7 @@ Legend / notes preserved from the original sections:
   });
   export type BetterMarkdownSettings = z.infer<typeof SettingsSchema>;
   ```
+
 - [ ] 🎯 `DEFAULT_SETTINGS` を `SettingsSchema.parse({})` で派生させる (`.default()` の自動収集)。
 - [ ] 🎯 `SETTING_KEYS` を `Object.keys(SettingsSchema.shape)` で派生。
 - [ ] 🎯 `package.json` の `contributes.configuration.properties` を **ビルド時に生成**: `zod-to-json-schema` で JSON schema を出力 → `scripts/gen-package-json-config.ts` が `package.json` の該当ブロックを書き換え → `npm run build` の prebuild で実行 + git で diff チェック (CI で drift 検出)。
@@ -114,12 +116,14 @@ Legend / notes preserved from the original sections:
 #### Phase C — `normalizeMarkdown` plugin architecture (~1 週間, Phase A 後)
 
 - [ ] 🔧 `webview/markdown-normalizers/` ディレクトリを作り、各正規化を以下の形に切り出す:
+
   ```ts
   export interface Normalizer {
     name: keyof BetterMarkdownSettings;  // or null for always-on
     apply: (lines: string[], ctx: NormalizerContext) => string[];
   }
   ```
+
   `NormalizerContext` は `{ inCodeBlock: boolean; mathPlaceholders: Map<...>; settings }` を持ち、全プラグインで共有 → `inCodeBlock` の重複追跡を撲滅 (P1 `renumberOrderedLists` のバグの根本原因)。
 - [ ] 🔧 `normalizeMarkdown(md, settings)` を **`lines = md.split("\n")` 1 回 → 各 normalizer を順次適用 → 最後に join 1 回** の構造に。split/join は 18 回 → 2 回。
 - [ ] 🔧 既存の `compactLists`/`unescapeSpecialChars`/`stripAutolinks`/`unescapeBareUrls`/`replaceSafetyEntities`/`fixTaskLists`/`renumberOrderedLists`/`padTables`/`fixTableHeaders` を 1 プラグインずつ移植 → 各移植で test 緑を維持。
@@ -129,6 +133,7 @@ Legend / notes preserved from the original sections:
 #### Phase D — Typed message protocol (~3 日, Phase B 後)
 
 - [ ] 🎯 `src/messages.ts` (host + webview から import 可) に判別共用体を定義:
+
   ```ts
   export type HostToWebview =
     | { type: "init"; content: string; baseUri: string; ...settings: BetterMarkdownSettings }
@@ -144,6 +149,7 @@ Legend / notes preserved from the original sections:
     | { type: "openLink"; href: string }
     | ...;
   ```
+
 - [ ] 🎯 host 側に `handlers: { [K in WebviewToHost["type"]]: (msg: Extract<WebviewToHost, { type: K }>, ctx) => Promise<void> }` を持たせ、`onDidReceiveMessage` の中身を `handlers[msg.type]?.(msg, ctx)` 一行に。
 - [ ] 🎯 各ハンドラを `src/handlers/` 配下に 1 ファイル 1 ハンドラで切り出し (`handle-upload-image.ts`, `handle-open-link.ts` …)。`provider.ts` 405 行 → 100 行台。
 - [ ] 🎯 webview 側も `vscodeApi.postMessage` を `postMessage(msg: WebviewToHost)` のラッパーに置き換え → typo がコンパイルエラーに。
