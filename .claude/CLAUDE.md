@@ -10,30 +10,40 @@ Notion-like WYSIWYG markdown editor as a VS Code native extension. Edits markdow
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `npm test` | Conversion + round-trip tests (categories A–Q) |
-| `npm run build` | esbuild: extension (node) + webview (browser) → `dist/` |
-| `npm run package` | `vsce package` → `.vsix` |
+| Command           | Description                                             |
+| ----------------- | ------------------------------------------------------- |
+| `npm test`        | Conversion + round-trip tests (categories A–Q)          |
+| `npm run build`   | esbuild: extension (node) + webview (browser) → `dist/` |
+| `npm run package` | `vsce package` → `.vsix`                                |
+
+## Constraints
+
+- KISS; 1 PR = 1 purpose. Touch only files relevant to the task.
+- TDD for conversion changes: any pipeline change needs a matching case in `test/test-conversions.ts` (category A–Q) — see "Adding a new conversion test" below.
+- Keep the three conversion files in sync: production `webview/hooks/useVSCodeSync.ts`, normalization `webview/markdown.config.ts`, and the test mirror `test/pipeline.ts`. A change in one usually needs the same change in the others.
+- Keep settings in sync across four places: `package.json` `contributes.configuration`, plus `BetterMarkdownSettings` / `DEFAULT_SETTINGS` / `SETTING_KEYS` in `webview/settings.ts`.
+- `README.md` and `CHANGELOG.md` MUST stay at repo root (Marketplace reads them there). All other docs live in `docs/`.
+- No new dependencies without approval — everything ships bundled by esbuild.
+- Comments and commit messages in English.
 
 ## Documentation
 
-| Document | Purpose | When to read |
-| --- | --- | --- |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, two-process model, data flow | Before a new feature or refactor |
-| [docs/WORKFLOW.md](docs/WORKFLOW.md) | Skills, hooks, CI, release flow | Process questions |
-| [docs/SPEC.md](docs/SPEC.md) | Feature specs | During implementation |
-| [docs/LEARNING.md](docs/LEARNING.md) | Decisions, gotchas, patterns | Bug fixes, design questions |
-| [docs/TODO.md](docs/TODO.md) | Outstanding tasks | Task selection |
-| [CHANGELOG.md](CHANGELOG.md) | Version history (root — Marketplace Changelog tab) | Release prep |
-| [README.md](README.md) | Marketplace page (root — required there) | — |
+| Document                                        | Purpose                                            | When to read                     |
+| ----------------------------------------------- | -------------------------------------------------- | -------------------------------- |
+| [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) | System design, two-process model, data flow        | Before a new feature or refactor |
+| [docs/WORKFLOW.md](../docs/WORKFLOW.md)         | Skills, hooks, CI, release flow                    | Process questions                |
+| [docs/SPEC.md](../docs/SPEC.md)                 | Feature specs                                      | During implementation            |
+| [docs/LEARNING.md](../docs/LEARNING.md)         | Decisions, gotchas, patterns                       | Bug fixes, design questions      |
+| [docs/TODO.md](../docs/TODO.md)                 | Outstanding tasks                                  | Task selection                   |
+| [CHANGELOG.md](../CHANGELOG.md)                 | Version history (root — Marketplace Changelog tab) | Release prep                     |
+| [README.md](../README.md)                       | Marketplace page (root — required there)           | —                                |
 
 ## Workflow Improvement
 
 作業中に以下を発見したら、確認を取らずに自律的に記録する:
 
-- 設計判断・落とし穴・発見したパターン → [docs/LEARNING.md](docs/LEARNING.md)（重複確認のうえ追記）
-- 手動で繰り返している作業・自動化できそうな処理・スキルの不足 → [docs/TODO.md](docs/TODO.md)
+- 設計判断・落とし穴・発見したパターン → [docs/LEARNING.md](../docs/LEARNING.md)（重複確認のうえ追記）
+- 手動で繰り返している作業・自動化できそうな処理・スキルの不足 → [docs/TODO.md](../docs/TODO.md)
 
 ## Before finishing ANY change
 

@@ -4,7 +4,6 @@
 dist/server.js
 .env
 .env.*
-CLAUDE.md
 docs/**
 test/**
 src/**
