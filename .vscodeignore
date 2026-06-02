@@ -1,6 +1,7 @@
 .vscode/**
 .claude/**
 .review-cycle/**
+dist/server.js
 .env
 .env.*
 CLAUDE.md

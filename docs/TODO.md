@@ -102,7 +102,6 @@ Additional findings from the focused security & supply-chain audit (`docs/securi
 - [ ] 🔧 P1: Replace `lucide-react@1.7.0` (v1 series freshly reset 2026-03, single maintainer) with inline SVGs in `webview/icons/`. ~25 icons across 9 files, ~150 LoC. Remove dep from `package.json`.
 - [ ] 🔧 P1: Replace `diff2html` + transitive `@profoundlogic/hogan` (new fork created 2025-10-08) with `jsdiff`-based renderer in [webview/components/DiffView.tsx](../webview/components/DiffView.tsx). ~250 LoC. Removes 1 direct + 1 high-risk transitive dep.
 - [ ] 🔧 P2: Bump `mermaid` to `11.14.1+` — resolves `GHSA-6m6c-36f7-fhxh` (Gantt DoS) and transitively `uuid@8.3.2`. Verify with `npm ls uuid`.
-- [ ] 🔧 P2: Bump `ws` to `8.20.1+`.
 
 ### Privacy
 
@@ -147,7 +146,7 @@ Additional findings from the focused security & supply-chain audit (`docs/securi
 - [x] Table formatting normalized to eliminate first-roundtrip whitespace diffs (6a9737e, b220192)
 - [x] Auto-close non-file custom editor tabs (git:, scm: schemes) via `onDidChangeTabs`
 - [x] Full image support — insert dialog, drag-and-drop, paste, captions, custom NodeView (e15f135)
-- [x] CodeLens "Open in Rich Editor" / "Open in Browser" above line 1 in the native markdown editor
+- [x] CodeLens "Open in Rich Editor" above line 1 in the native markdown editor
 - [x] Refactor App.tsx into focused hooks (`useSettingsPanel`, `useEditorState`, `useClipboardHandlers`, `useDragDrop`) (64aa575)
 - [x] Graceful fallback when Claude Code edits can't be intercepted pre-acceptance (04b2502)
 - [x] Consolidate README assets under `assets/`, drop external `markdown-studio-issues` image hosting
