@@ -18,6 +18,7 @@ import { MathBlock } from "./extensions/MathBlock";
 import { MermaidBlock } from "./extensions/MermaidBlock";
 import { YouTubeEmbed } from "./extensions/YouTubeEmbed";
 import { GitHubEmbed } from "./extensions/GitHubEmbed";
+import { HeadingFold } from "./extensions/HeadingFold";
 import { StickyHeadings } from "./components/StickyHeadings";
 import { TableOfContents } from "./components/TableOfContents";
 import { SearchBar } from "./components/SearchBar";
@@ -54,8 +55,9 @@ export function App() {
       StarterKit.configure({
         codeBlock: false, // replaced by CodeBlockLowlight
         code: false, // replaced below so inline code can coexist with bold/italic
-        heading: { levels: [1, 2, 3, 4, 5, 6] },
+        heading: false, // replaced by HeadingFold (adds the fold/unfold toggle)
       }),
+      HeadingFold.configure({ levels: [1, 2, 3, 4, 5, 6] }),
       // Tiptap's default Code mark sets `excludes: '_'`, which strips every
       // other mark (e.g. bold) when the code mark is applied. Override to ''
       // so `**\`bold code\`**` round-trips without losing the bold wrapper.

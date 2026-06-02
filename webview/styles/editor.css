@@ -96,6 +96,55 @@ html, body, #root {
 .tiptap-editor h5 { font-size: 1em; font-weight: 700; margin: 0.6em 0 0.2em; }
 .tiptap-editor h6 { font-size: 0.9em; font-weight: 700; margin: 0.6em 0 0.2em; color: var(--vscode-descriptionForeground, #aaa); }
 
+/* Heading fold/unfold toggle — always-visible chevron in the left gutter.
+   Positioned absolutely so it doesn't affect heading metrics (sticky
+   headings, TOC, line-height all stay clean). */
+.heading-with-toggle {
+  position: relative;
+}
+.heading-fold-toggle {
+  position: absolute;
+  left: -1.4rem;
+  top: 0.55em;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--vscode-descriptionForeground, #888);
+  cursor: pointer;
+  opacity: 0.55;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s, color 0.15s;
+  user-select: none;
+}
+.heading-with-toggle:hover .heading-fold-toggle,
+.heading-fold-toggle:focus-visible {
+  opacity: 1;
+}
+.heading-fold-toggle:hover {
+  color: var(--vscode-textLink-foreground, #3794ff);
+}
+.heading-fold-toggle:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+.heading-with-toggle.is-folded .heading-fold-toggle {
+  opacity: 0.85;
+}
+/* The collapsed-content marker — sits as a subtle "…" after the heading
+   text when the heading is folded, so users get visual feedback that the
+   body is hidden without scrolling for the next heading. */
+.heading-with-toggle.is-folded::after {
+  content: " …";
+  color: var(--vscode-descriptionForeground, #888);
+  font-weight: 400;
+  opacity: 0.7;
+}
+
 /* Links */
 .tiptap-editor a {
   cursor: pointer;
