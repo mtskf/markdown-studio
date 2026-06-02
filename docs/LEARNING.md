@@ -37,6 +37,18 @@
 
 ユーザー向け escape hatch: `workbench.editorAssociations` に `{git,vscode-scm}:/**/*.md` を `"default"` でマッピングすればプログラム的処理なしで同じ効果が得られる。CHANGELOG にも記載。
 
+## Tiptap / ProseMirror
+
+### 2026-06-02: ReactNodeView は meta-only transaction で再描画されない
+
+問題: ProseMirror plugin state を変えるだけのトグル（例: heading fold）で `tr.setMeta(KEY, ...)` を dispatch すると `docChanged === false`。Tiptap の `ReactNodeViewRenderer.update()` は `node` / `decorations` / `innerDecorations` が referentially equal なら short-circuit する。meta-only tr では 3 つとも変わらないので React コンポーネントは再描画されず、`pluginState.getState(editor.state)` を読む UI（chevron, CSS class）は前回値のまま固まる。
+
+決定: NodeView 内で `editor.on("transaction", handler)` を購読し、目当ての meta key を見たら `forceUpdate` を呼ぶ。`webview/extensions/HeadingFold.tsx` の `HeadingView` がこのパターン。
+
+代替案: plugin が heading 位置にノード装飾 `Decoration` を出す → `decorations` が ref-new になり Tiptap の通常 update が走る。しかし装飾内容が単なるブール（folded か否か）に過ぎないとき、購読の方が薄い。
+
+教訓: NodeView から plugin state を読む全ての場所で「doc-changing tr 以外にも反応が要るか？」を考える。今回は fold 状態だが、同じ罠は selection-derived UI 等にも当てはまる。
+
 ## Claude Workflow
 
 ### 2026-06-02: settings.json の machine 固有設定は settings.local.json へ
