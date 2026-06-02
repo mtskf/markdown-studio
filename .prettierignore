@@ -1,0 +1,4 @@
+# External prettier passes (Markdown All in One, on-save formatters, etc.) strip
+# HTML comments like `<!-- branch: ... -->` markers used by /ship Step 0 TODO
+# detection, and normalize `*emphasis*` to `_emphasis_`. Keep this file pristine.
+docs/TODO.md
