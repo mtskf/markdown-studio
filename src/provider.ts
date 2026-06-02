@@ -5,6 +5,7 @@ import { SETTING_KEYS } from "../webview/settings";
 const CONFIG_NAMESPACE = "markdownStudio";
 const CURSORS_KEY = "betterMarkdown.cursors";
 const HEADING_FOLDS_KEY = "betterMarkdown.headingFolds";
+const TOC_COLLAPSED_KEY = "betterMarkdown.tocCollapsed";
 const CONSENT_SHOWN_KEY = "betterMarkdown.consentShown";
 
 /**
@@ -105,6 +106,21 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
       all[filePath] = folds;
     }
     await this.context.globalState.update(HEADING_FOLDS_KEY, all);
+  }
+
+  /**
+   * Last-known collapsed state of the TOC sidebar. Stored globally (not
+   * per-file) — the TOC is a UI affordance the user toggles once and
+   * expects to stay put across files. Returns `undefined` on first run so
+   * the webview can apply its initial default (collapsed) without
+   * conflating "never set" with "explicitly false".
+   */
+  private loadTocCollapsed(): boolean | undefined {
+    return this.context.globalState.get<boolean>(TOC_COLLAPSED_KEY);
+  }
+
+  private async saveTocCollapsed(value: boolean): Promise<void> {
+    await this.context.globalState.update(TOC_COLLAPSED_KEY, value);
   }
 
   /**
@@ -258,6 +274,7 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
           settings: readSettings(),
           cursorPosition: this.loadCursor(document.uri.fsPath),
           headingFolds: this.loadHeadingFolds(document.uri.fsPath),
+          tocCollapsed: this.loadTocCollapsed(),
         });
         // Fire the first-run setup prompt only after the webview has
         // signalled `ready` — posting earlier would land before the
@@ -278,6 +295,10 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
             (n): n is number => typeof n === "number" && Number.isInteger(n),
           );
           await this.saveHeadingFolds(document.uri.fsPath, folds);
+        }
+      } else if (msg.type === "saveTocCollapsed") {
+        if (typeof msg.collapsed === "boolean") {
+          await this.saveTocCollapsed(msg.collapsed);
         }
       } else if (msg.type === "saveSettings") {
         await writeSettings(msg.settings as Record<string, unknown>);
