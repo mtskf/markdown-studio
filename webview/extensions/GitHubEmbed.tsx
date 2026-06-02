@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React from "react";
 import { Node, mergeAttributes, nodePasteRule } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import { Code, GitPullRequest, CircleDot, FileCode, Book } from "lucide-react";
+import { useEmbedEditor } from "../hooks/useEmbedEditor";
 
 // Matches github.com links to a specific repo / PR / issue / file. We avoid
 // matching bare "github.com" or user profile URLs — those aren't useful as
@@ -117,45 +118,12 @@ function GitHubEmbedView({
   deleteNode,
   selected,
 }: any) {
-  const [editing, setEditing] = useState(!node.attrs.url);
-  const [url, setUrl] = useState<string>(node.attrs.url || "");
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editing && inputRef.current) {
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
-  }, [editing]);
-
-  useEffect(() => {
-    setUrl(node.attrs.url || "");
-  }, [node.attrs.url]);
-
-  const save = useCallback((): string => {
-    const trimmed = url.trim();
-    if (!trimmed) {
-      deleteNode();
-      return "";
-    }
-    updateAttributes({ url: trimmed });
-    setEditing(false);
-    return trimmed;
-  }, [url, updateAttributes, deleteNode]);
-
-  const exit = useCallback(
-    (after: boolean) => {
-      // updateAttributes is async — node.attrs.url is still stale here, so
-      // guard on the value save() actually committed, not the node snapshot.
-      const trimmed = save();
-      if (typeof getPos === "function" && editor && trimmed) {
-        const base = getPos();
-        const pos = after ? base + node.nodeSize : base;
-        requestAnimationFrame(() => {
-          editor.chain().focus().setTextSelection(pos).run();
-        });
-      }
-    },
-    [save, editor, getPos, node],
+  const { url, setUrl, editing, inputRef, save, onKeyDown } = useEmbedEditor(
+    node,
+    updateAttributes,
+    deleteNode,
+    editor,
+    getPos,
   );
 
   if (editing) {
@@ -169,30 +137,7 @@ function GitHubEmbedView({
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onBlur={save}
-            onKeyDown={(e) => {
-              const input = e.currentTarget;
-              const atStart =
-                input.selectionStart === 0 && input.selectionEnd === 0;
-              const atEnd =
-                input.selectionStart === input.value.length &&
-                input.selectionEnd === input.value.length;
-              if (e.key === "Enter" || e.key === "Escape") {
-                e.preventDefault();
-                exit(true);
-              } else if (
-                (e.key === "ArrowLeft" && atStart) ||
-                e.key === "ArrowUp"
-              ) {
-                e.preventDefault();
-                exit(false);
-              } else if (
-                (e.key === "ArrowRight" && atEnd) ||
-                e.key === "ArrowDown"
-              ) {
-                e.preventDefault();
-                exit(true);
-              }
-            }}
+            onKeyDown={onKeyDown}
             placeholder="Paste GitHub URL (repo, PR, issue, file)"
           />
         </div>
