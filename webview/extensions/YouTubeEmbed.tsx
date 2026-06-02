@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React from "react";
 import { Node, mergeAttributes, nodePasteRule } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import { CirclePlay } from "lucide-react";
+import { useEmbedEditor } from "../hooks/useEmbedEditor";
 
 // Matches bare YouTube URLs (watch, youtu.be short, shorts, embed forms).
 // Used both to detect paste-as-URL and to validate inputs entered manually.
@@ -37,47 +38,8 @@ function YouTubeEmbedView({
   deleteNode,
   selected,
 }: any) {
-  const [editing, setEditing] = useState(!node.attrs.url);
-  const [url, setUrl] = useState<string>(node.attrs.url || "");
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editing && inputRef.current) {
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
-  }, [editing]);
-
-  useEffect(() => {
-    setUrl(node.attrs.url || "");
-  }, [node.attrs.url]);
-
-  const save = useCallback((): string => {
-    const trimmed = url.trim();
-    if (!trimmed) {
-      // Empty URL — remove the node entirely so we don't persist a stub.
-      deleteNode();
-      return "";
-    }
-    updateAttributes({ url: trimmed });
-    setEditing(false);
-    return trimmed;
-  }, [url, updateAttributes, deleteNode]);
-
-  const exit = useCallback(
-    (after: boolean) => {
-      // updateAttributes is async — node.attrs.url is still stale here, so
-      // guard on the value save() actually committed, not the node snapshot.
-      const trimmed = save();
-      if (typeof getPos === "function" && editor && trimmed) {
-        const base = getPos();
-        const pos = after ? base + node.nodeSize : base;
-        requestAnimationFrame(() => {
-          editor.chain().focus().setTextSelection(pos).run();
-        });
-      }
-    },
-    [save, editor, getPos, node],
-  );
+  const { url, setUrl, editing, setEditing, inputRef, save, onKeyDown } =
+    useEmbedEditor(node, updateAttributes, deleteNode, editor, getPos);
 
   const videoId = getYouTubeVideoId(url);
 
@@ -92,30 +54,7 @@ function YouTubeEmbedView({
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onBlur={save}
-            onKeyDown={(e) => {
-              const input = e.currentTarget;
-              const atStart =
-                input.selectionStart === 0 && input.selectionEnd === 0;
-              const atEnd =
-                input.selectionStart === input.value.length &&
-                input.selectionEnd === input.value.length;
-              if (e.key === "Enter" || e.key === "Escape") {
-                e.preventDefault();
-                exit(true);
-              } else if (
-                (e.key === "ArrowLeft" && atStart) ||
-                e.key === "ArrowUp"
-              ) {
-                e.preventDefault();
-                exit(false);
-              } else if (
-                (e.key === "ArrowRight" && atEnd) ||
-                e.key === "ArrowDown"
-              ) {
-                e.preventDefault();
-                exit(true);
-              }
-            }}
+            onKeyDown={onKeyDown}
             placeholder="Paste YouTube URL (https://youtu.be/...)"
           />
         </div>
