@@ -63,7 +63,7 @@ A VSCode extension that replaces the default markdown editor with a Notion-like 
 
 ### CodeLens Entry Points
 
-- When a `.md` file is open in VS Code's native text editor, a CodeLens row at line 1 offers "Open in Rich Editor" and "Open in Browser" actions, so users can switch into the rich view without hunting for the command palette.
+- When a `.md` file is open in VS Code's native text editor, a CodeLens row at line 1 offers an "Open in Rich Editor" action, so users can switch into the rich view without hunting for the command palette.
 
 ### Read-Only for Non-File URIs
 

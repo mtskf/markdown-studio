@@ -32,7 +32,7 @@ import { matchesBinding, selectWordAtCursor } from "./utils";
 import { useEditorState } from "./hooks/useEditorState";
 import { useClipboardHandlers } from "./hooks/useClipboardHandlers";
 import { useDragDrop } from "./hooks/useDragDrop";
-import { isBrowserMode, vscodeApi } from "./vscode-api";
+import { vscodeApi } from "./vscode-api";
 
 const lowlight = createLowlight(common);
 
@@ -96,7 +96,6 @@ export function App() {
     uploadImage,
     currentMarkdown,
     switchToSource,
-    openInBrowser,
     toggleDiff,
   } = useEditorState({ editor, settingsRef, handleUpdateRef, applySettings });
 
@@ -255,18 +254,8 @@ export function App() {
             role="button"
             tabIndex={0}
           >
-            {isBrowserMode ? "Open in VS Code" : "Open in Default Editor"}
+            Open in Default Editor
           </span>
-          {!isBrowserMode && (
-            <span
-              className="toggle-source"
-              onClick={openInBrowser}
-              role="button"
-              tabIndex={0}
-            >
-              Open in Browser
-            </span>
-          )}
         </div>
         <EditorContent editor={editor} />
         {!readonly && <EditorBubbleMenu editor={editor} />}

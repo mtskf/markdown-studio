@@ -35,10 +35,6 @@ message passing:
 | Extension host | Node | [`src/`](../src) | Owns the `TextDocument`, registers the editor/commands, talks to git, persists settings, writes files. |
 | Webview | Browser (sandboxed iframe) | [`webview/`](../webview) | Renders the Tiptap editor, runs the markdown ⇄ HTML conversion, sends proposed edits back. |
 
-A third, optional process is the **standalone dev server**
-([`server/index.ts`](../server/index.ts)), which lets the same webview bundle run
-in a real browser outside VS Code (see §3 / §4).
-
 ### Message passing
 
 All host ⇄ webview traffic is `postMessage` with a `{ type, ... }` shape. There
@@ -56,7 +52,7 @@ handler in [`webview/hooks/useEditorState.ts`](../webview/hooks/useEditorState.t
 | host → webview | `init` | Initial `content`, `baseUri`, `docFolderPath`, `filePath`, `isReadonly`, `settings`, `cursorPosition`. |
 | webview → host | `edit` | Proposed new markdown (debounced ~300ms). Host applies a `WorkspaceEdit`. |
 | host → webview | `update` | Document changed on disk / externally; re-render. |
-| webview → host | `saveCursor` / `saveSettings` / `uploadImage` / `openLink` / `requestGitDiff` / `toggleEditor` / `openInBrowser` / `setupPromptChoice` | Side-effecting requests routed to host APIs. |
+| webview → host | `saveCursor` / `saveSettings` / `uploadImage` / `openLink` / `requestGitDiff` / `toggleEditor` / `setupPromptChoice` | Side-effecting requests routed to host APIs. |
 | host → webview | `settingsUpdated` | Config changed (any write path); fold into editor settings. |
 | host → webview | `gitDiffResponse` / `imageUploaded` / `showSetupPrompt` | Replies / triggers. |
 
@@ -64,14 +60,13 @@ handler in [`webview/hooks/useEditorState.ts`](../webview/hooks/useEditorState.t
 
 ## 2. Build system
 
-A single esbuild script, [`esbuild.js`](../esbuild.js), produces **three
+A single esbuild script, [`esbuild.js`](../esbuild.js), produces **two
 bundles** plus copied assets, all into `dist/`. `npm run build` runs it once;
-`npm run watch` runs all three in esbuild `context().watch()` mode.
+`npm run watch` runs both in esbuild `context().watch()` mode.
 
 | Bundle | Entry | Target / format | Notes |
 |---|---|---|---|
 | Extension host | [`src/extension.ts`](../src/extension.ts) | `node` / `cjs` | `vscode` marked **external** (provided by the runtime). → `dist/extension.js` |
-| Dev server | [`server/index.ts`](../server/index.ts) | `node` / `cjs` | Fully bundled so it ships in the VSIX without needing `tsx`. → `dist/server.js` |
 | Webview | [`webview/index.tsx`](../webview/index.tsx) | `browser` / `esm` | **Code-splitting on** (`splitting: true`, `chunkNames: chunks/webview-[hash]`) so heavy deps like `mermaid` load as dynamic chunks. Fonts/images use the `dataurl` loader. → `dist/webview.js` + `dist/chunks/`. |
 
 ### CSS and fonts (`copyCSS()` in esbuild.js)
@@ -103,12 +98,9 @@ Three files, all written against the VS Code API.
   `supportsMultipleEditorsPerDocument: true` and
   `retainContextWhenHidden: true`.
 - Registers commands: `toggleEditor` (swap rich ⇄ default editor via
-  `vscode.openWith`), `find`, `openDiff`, `openInBrowser`, `factoryReset`.
-- Registers a `CodeLensProvider` that adds "Open in Rich Editor" / "Open in
-  Browser" lenses at the top of any markdown source view.
-- **Open in Browser**: spawns a single long-lived `dist/server.js` process the
-  first time, then opens `http://localhost:3333/edit<filePath>`. The process is
-  killed on deactivation.
+  `vscode.openWith`), `find`, `openDiff`, `factoryReset`.
+- Registers a `CodeLensProvider` that adds an "Open in Rich Editor" lens at the
+  top of any markdown source view.
 - **Auto-close of non-`file:` custom editors**: when VS Code opens a git diff
   for a `.md`, the custom editor intercepts both `git:`/`scm:` sides; those
   read-only panes are auto-closed via `onDidChangeTabs`. The comment block
@@ -214,21 +206,8 @@ mode). The message wiring and debounce live in
 
 ### API shim — [`webview/vscode-api.ts`](../webview/vscode-api.ts)
 
-`vscodeApi` is `acquireVsCodeApi()` inside VS Code. In the browser
-(`isBrowserMode`) it's a shim backed by a WebSocket to the dev server that
-dispatches incoming frames as `window` `message` events — so `App.tsx` and the
-hooks work identically in both runtimes.
-
-### Standalone server runtime — [`server/index.ts`](../server/index.ts)
-
-A plain `http` + `ws` server (default port 3333). `/edit/<abs-path>` serves the
-HTML shell with `__BTRMK_FILE__` set; `/ws/<abs-path>` is the per-file
-WebSocket. It mirrors the host message protocol (`ready`/`init`/`edit`/
-`saveSettings`/`requestGitDiff`/`openLink`/`toggleEditor`), watches the file
-with `fs.watch` for external changes, serves images under `/doc/<base64dir>/…`,
-and accepts uploads via `POST /upload/…`. Settings persist to
-`~/.better-markdown-settings.json` (independent of VS Code config — this runtime
-has no access to it).
+`vscodeApi` is a thin wrapper around `acquireVsCodeApi()`. The custom editor is
+the only host runtime.
 
 ---
 
@@ -321,9 +300,6 @@ every open webview as `settingsUpdated`. The host reads config **per known key**
   User-scope keys + the consent flag (workspace overrides left intact), then the
   config listener broadcasts the defaults.
 
-The standalone server uses its own JSON file
-(`~/.better-markdown-settings.json`) since it can't reach VS Code config.
-
 ---
 
 ## 7. Testing
@@ -395,5 +371,4 @@ exceptions rather than silent corruption.
 Read top-to-bottom for **open** (disk → editor), bottom-to-top for **save**
 (edit → disk). The same bundle, driven by `__BTRMK_MODE__ = "diff"` and a
 different host (`src/diffPanel.ts`), renders the standalone rich diff instead of
-the editor; and the same bundle, driven by `server/index.ts` over a WebSocket,
-runs in a plain browser.
+the editor.

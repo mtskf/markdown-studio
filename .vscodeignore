@@ -1,5 +1,7 @@
 .vscode/**
 .claude/**
+.review-cycle/**
+dist/server.js
 .env
 .env.*
 CLAUDE.md
@@ -9,7 +11,6 @@ src/**
 webview/**
 node_modules/**
 scripts/**
-server/**
 esbuild.js
 tsconfig.json
 .gitignore
