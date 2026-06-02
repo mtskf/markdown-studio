@@ -235,6 +235,11 @@ function fixTaskLists(md: string): string {
 /**
  * Renumber consecutive ordered list items.
  * BlockNote outputs each item as "1." — this fixes them to 1. 2. 3. etc.
+ *
+ * Skips lines inside fenced code blocks (incl. the `btrmk-math-block`
+ * placeholder fence), where numbered lines are literal content, not list
+ * items. Mirrors the inCodeBlock guard used by sibling normalizers
+ * (unescapeSpecialChars, stripAutolinks, compactLists, ...).
  */
 function renumberOrderedLists(md: string): string {
   const lines = md.split("\n");
@@ -242,8 +247,22 @@ function renumberOrderedLists(md: string): string {
   let counter = 0;
   let inList = false;
   let blankLineGap = false;
+  let inCodeBlock = false;
 
   for (const line of lines) {
+    if (/^```/.test(line)) {
+      inCodeBlock = !inCodeBlock;
+      // A fence breaks any in-progress list, same as any other non-list line.
+      inList = false;
+      counter = 0;
+      blankLineGap = false;
+      result.push(line);
+      continue;
+    }
+    if (inCodeBlock) {
+      result.push(line);
+      continue;
+    }
     const match = line.match(/^(\s*)(\d+)\.\s(.*)$/);
     if (match && match[1] === "") {
       counter++;
