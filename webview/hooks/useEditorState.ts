@@ -65,7 +65,10 @@ export function useEditorState({
   } | null>(null);
   const [imageDialogVisible, setImageDialogVisible] = useState(false);
 
-  // Upload an image file and return the full src URL for the editor
+  // Upload an image file and return the full src URL for the editor.
+  // Correlates each request/reply with a UUID so concurrent drops don't
+  // cross-resolve to the wrong src, and times out so a missing reply can't
+  // leak the listener forever.
   const uploadImage = useCallback(async (file: File): Promise<string> => {
     const name =
       file.name && file.name !== "image.png" && file.name !== "blob"
@@ -73,17 +76,28 @@ export function useEditorState({
         : `pasted-${Date.now()}${mimeToExt(file.type)}`;
 
     const base64 = await fileToBase64(file);
+    const requestId = crypto.randomUUID();
     return new Promise<string>((resolve, reject) => {
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const cleanup = () => {
+        window.removeEventListener("message", handler);
+        if (timer) clearTimeout(timer);
+      };
       const handler = (ev: MessageEvent) => {
-        if (ev.data?.type === "imageUploaded") {
-          window.removeEventListener("message", handler);
-          if (ev.data.src) resolve(ev.data.src as string);
-          else reject(new Error("Upload failed"));
-        }
+        if (ev.data?.type !== "imageUploaded") return;
+        if (ev.data.requestId !== requestId) return;
+        cleanup();
+        if (ev.data.src) resolve(ev.data.src as string);
+        else reject(new Error("Upload failed"));
       };
       window.addEventListener("message", handler);
+      timer = setTimeout(() => {
+        cleanup();
+        reject(new Error("Image upload timed out"));
+      }, 30_000);
       vscodeApi.postMessage({
         type: "uploadImage",
+        requestId,
         data: base64,
         filename: name,
       });

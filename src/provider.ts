@@ -342,6 +342,10 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
         });
         webview.postMessage({ type: "imageUrlResult", url: url || null });
       } else if (msg.type === "uploadImage") {
+        // Echo the webview's requestId back on both success and failure so
+        // concurrent uploads can correlate their replies. Older clients
+        // without a requestId still get a reply (undefined === undefined).
+        const requestId = msg.requestId as string | undefined;
         try {
           const data = Buffer.from(msg.data as string, "base64");
           const requested = path.basename(msg.filename as string);
@@ -364,10 +368,15 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
           await vscode.workspace.fs.writeFile(destUri, data);
           webview.postMessage({
             type: "imageUploaded",
+            requestId,
             src: `${baseUri}/${finalName}`,
           });
         } catch (err: any) {
-          webview.postMessage({ type: "imageUploaded", src: null });
+          webview.postMessage({
+            type: "imageUploaded",
+            requestId,
+            src: null,
+          });
         }
       } else if (msg.type === "edit") {
         if (isReadonly) return;
