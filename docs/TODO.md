@@ -22,7 +22,7 @@ Multi-agent review + adversarial verification. Ordered by priority. Each verifie
 - [ ] 🐛 Image-upload reply has no request-id or timeout. [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
 - [ ] ⚙️ `tsx` not in deps/devDeps/lockfile. [package.json](../package.json) `npm test` uses `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
 - [ ] ⚙️ `ovsx` not in deps/devDeps/lockfile. [.github/workflows/publish.yml:43](../.github/workflows/publish.yml#L43) `npx ovsx publish` live-downloads at publish time (vsce is pinned, ovsx isn't) → Open VSX publish can break. Fix: `npm i -D ovsx`.
-- [ ] ⚙️ No CI on PR / push. Only [publish.yml](../.github/workflows/publish.yml) exists (tag-triggered); tests run only at release → a broken master is caught only when tagged. Fix: add `ci.yml` on `pull_request`/`push` running `npm ci && npm test && node esbuild.js`.
+- [ ] ⚙️ No CI on PR / push. Only [publish.yml](../.github/workflows/publish.yml) exists (tag-triggered); tests run only at release → a broken main is caught only when tagged. Fix: add `ci.yml` on `pull_request`/`push` running `npm ci && npm test && node esbuild.js`.
 
 ### P2 — Medium
 

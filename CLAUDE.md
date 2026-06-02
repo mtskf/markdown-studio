@@ -63,7 +63,7 @@ Always update `CHANGELOG.md` with every version bump. Patch-level changes within
 
 Publishing is automated via `.github/workflows/publish.yml`, which fires on pushed tags matching `v*`. It packages one `.vsix` and publishes it to both the VS Code Marketplace (`vsce`, `VSCODE_PAT` secret) and Open VSX (`ovsx`, `OPENVSX_PAT` secret). The workflow fails fast if the tag version doesn't match `package.json`.
 
-After a version bump + commit is pushed to `master`, ask the user for permission before tagging. Example:
+After a version bump + commit is pushed to `main`, ask the user for permission before tagging. Example:
 
 > "Ready to release v2.1.13 — want me to tag and push so the workflow publishes it?"
 
