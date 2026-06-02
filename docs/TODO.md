@@ -2,7 +2,7 @@
 
 ## Priority Features
 
-- [ ] 🚩 **Heading fold / unfold toggle.** Always-visible ▼/▶ icon to the left of each heading; click toggles between folded and unfolded. Fold hides everything up to the next same-or-higher-level heading (Notion / outline style).
+- [ ] 🚧 🚩 **Heading fold / unfold toggle.** Always-visible ▼/▶ icon to the left of each heading; click toggles between folded and unfolded. Fold hides everything up to the next same-or-higher-level heading (Notion / outline style). <!-- branch: feat/heading-fold-toggle -->
   - Persistence: VS Code globalState keyed per file (same mechanism as `betterMarkdown.cursors` at [src/provider.ts:62-75](../src/provider.ts#L62)) — survives reload without polluting markdown. Markdown round-trip stays untouched.
   - Implementation sketch: extend Tiptap `Heading` with a NodeView for the toggle button; render folded ranges via ProseMirror `Decoration` (`display: none`) so the document is unchanged and `htmlToMarkdown` continues to round-trip cleanly. Coordinate with [webview/components/TableOfContents.tsx](../webview/components/TableOfContents.tsx) and [StickyHeadings.tsx](../webview/components/StickyHeadings.tsx) which already enumerate headings.
   - Both fold and unfold must work, and the collapsed/expanded state must be restored on file reopen.
