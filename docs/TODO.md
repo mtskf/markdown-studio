@@ -12,7 +12,7 @@ Legend / notes preserved from the original sections:
 
 ### Bug / Code Review — P1 High
 
-- [ ] 🚧 ⚙️ `tsx` not in deps/devDeps/lockfile. <!-- branch: chore/add-tsx-devdep --> [package.json](../package.json) `npm test` uses `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
+- [ ] 🚧 🐛 Image-upload reply has no request-id or timeout. <!-- branch: fix/image-upload-request-id-timeout --> [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
 - [ ] ⚙️ `ovsx` not in deps/devDeps/lockfile. [.github/workflows/publish.yml:43](../.github/workflows/publish.yml#L43) `npx ovsx publish` live-downloads at publish time (vsce is pinned, ovsx isn't) → Open VSX publish can break. Fix: `npm i -D ovsx`.
 - [x] ⚙️ No CI on PR / push — added [ci.yml](../.github/workflows/ci.yml) on `pull_request` / `push` (main) running `npm ci && npm test && node esbuild.js`.
 
@@ -259,6 +259,7 @@ Legend / notes preserved from the original sections:
 
 ### High Priority — Done
 
+- [x] ⚙️ `tsx` not in deps/devDeps/lockfile. [package.json](../package.json) `npm test` uses `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
 - [x] 🚩 ✨ **TOC panel: collapsed by default (or remember last state).** Currently [webview/components/TableOfContents.tsx:37](../webview/components/TableOfContents.tsx#L37) initializes `useState(false)` for `collapsed`, so the sidebar is always open on every fresh editor open — there's no setting and no persistence. Desired: TOC should default to collapsed (panel hidden, expand button visible). Two paths: (a) add a `markdownStudio.tocDefaultCollapsed: boolean` setting wired through the usual 4 places (`package.json` `contributes.configuration`, `BetterMarkdownSettings`, `DEFAULT_SETTINGS`, `SETTING_KEYS` in [webview/settings.ts](../webview/settings.ts)) and read it as the `useState` initial; (b) persist the user's last collapsed state per-workspace via `vscodeApi.postMessage` → `globalState` (similar to `betterMarkdown.headingFolds`) so the panel remembers the last manual toggle. (a) is the literal ask; (b) is the more polite UX and worth considering as the primary fix.
 - [x] 🚩 🐛 **Rich editor doesn't pick up external `.md` changes.** When the backing file is modified outside the webview (git pull, `/ship` auto-commits, another editor, format-on-save from a different tool, etc.), the open Rich editor tab keeps rendering the stale content until the file is manually closed and reopened. The native source editor auto-refreshes; the Rich editor should mirror that.
   - Likely root cause: [src/provider.ts](../src/provider.ts) wires `onDidChangeTextDocument` to push edits to the webview, but external file changes that bypass VS Code's TextDocument (or arrive while the webview holds an in-memory copy) aren't re-broadcast. Possibly also missing a `vscode.workspace.createFileSystemWatcher` fallback for the `file:` path.

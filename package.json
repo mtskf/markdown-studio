@@ -281,6 +281,7 @@
     "@types/vscode": "^1.80.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.20.0",
+    "tsx": "^4.22.4",
     "typescript": "^5.4.0"
   },
   "dependencies": {
