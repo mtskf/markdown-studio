@@ -347,6 +347,13 @@ export class BetterMarkdownProvider implements vscode.CustomTextEditorProvider {
         // concurrent uploads can correlate their replies. Older clients
         // without a requestId still get a reply (undefined === undefined).
         const requestId = msg.requestId as string | undefined;
+        // Read-only documents (git:/scm: views) must not produce disk writes.
+        // Without this, a read-only Rich-editor diff view could still drop an
+        // image into the doc's folder via an upload message.
+        if (isReadonly) {
+          webview.postMessage({ type: "imageUploaded", requestId, src: null });
+          return;
+        }
         const prepared = prepareImageUpload(msg.filename, msg.data);
         if (!prepared.ok) {
           webview.postMessage({ type: "imageUploaded", requestId, src: null });
