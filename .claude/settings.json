@@ -1,0 +1,126 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(src/**)",
+      "Edit(webview/**)",
+      "Edit(server/**)",
+      "Edit(test/**)",
+      "Edit(scripts/**)",
+      "Edit(assets/**)",
+      "Edit(docs/**)",
+      "Edit(tmp/**)",
+      "Edit(**/.review-cycle/**)",
+      "Write(src/**)",
+      "Write(webview/**)",
+      "Write(server/**)",
+      "Write(test/**)",
+      "Write(scripts/**)",
+      "Write(assets/**)",
+      "Write(docs/**)",
+      "Write(tmp/**)",
+      "Write(**/.review-cycle/**)",
+
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(python3:*)",
+
+      "Bash(git:*)",
+      "Bash(gh:*)",
+
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(wc:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(diff:*)",
+      "Bash(stat:*)",
+      "Bash(lsof:*)",
+
+      "Bash(cd:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(echo:*)",
+      "Bash(xargs:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(tr:*)",
+      "Bash(cut:*)",
+      "Bash(tar:*)",
+      "Bash(unzip:*)",
+      "Bash(test:*)",
+      "Bash(kill:*)",
+
+      "Bash(open:*)",
+      "Bash(code:*)",
+      "Bash(pbcopy:*)",
+      "Bash(pbpaste:*)",
+
+      "Bash(claude:*)",
+      "Bash(codex:*)",
+      "Bash(script:*)",
+
+      "Bash(while [ ! -f .review-cycle:*)",
+      "Bash(cp **/.review-cycle/:*)",
+      "Bash(find **/.review-cycle:*)",
+      "Bash(rm -rf **/.review-cycle:*)",
+
+      "WebFetch(domain:claude.com)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+
+      "Skill(commit)",
+      "Skill(commit:*)",
+      "Skill(pr)",
+      "Skill(merge-pr)",
+      "Skill(next-todo)",
+      "Skill(ship)",
+      "Skill(review-cycle)",
+      "Skill(review-plan)",
+      "Skill(sync-main)",
+      "Skill(parallel-checks)",
+      "Skill(resolve-conflict)",
+      "Skill(full-review)",
+      "Skill(code-review:code-review)",
+      "Skill(commit-commands:commit)",
+      "Skill(commit-commands:commit-push-pr)",
+      "Skill(commit-commands:clean_gone)",
+      "Skill(superpowers:*)",
+      "Skill(feature-dev:*)",
+      "Skill(claude-md-management:*)",
+      "Skill(frontend-design:*)"
+    ],
+    "deny": ["Bash(sudo:*)", "Bash(git push --force:*)", "Bash(git reset --hard:*)"]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-edit-format.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
