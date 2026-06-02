@@ -10,24 +10,16 @@ Legend / notes preserved from the original sections:
 
 ## High Priority
 
-### Feature
-
-- [ ] 🚧 🚩 🎨 **Remove "…" placeholder shown after folded headings.** When a heading is folded, [webview/styles/editor.css:141-146](../webview/styles/editor.css#L141) renders `.heading-with-toggle.is-folded::after { content: " …"; … }`, appending a grey ellipsis next to the heading text. The chevron (▶) already signals folded state — the ellipsis is redundant visual noise. Fix: remove the entire `.heading-with-toggle.is-folded::after` rule (lines 141-146) and the explanatory comment block above it. No other CSS/JS references the `::after`, so it's a clean delete. No round-trip impact (CSS only).
-
 ### Bug / Code Review — P1 High
 
 - [ ] 🚧 🐛 Image-upload reply has no request-id or timeout. <!-- branch: fix/image-upload-request-id-timeout --> [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
-- [ ] ⚙️ `tsx` not in deps/devDeps/lockfile. [package.json](../package.json) `npm test` uses `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
+- [ ] 🚧 ⚙️ `tsx` not in deps/devDeps/lockfile. <!-- branch: chore/add-tsx-devdep --> [package.json](../package.json) `npm test` uses `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
 - [ ] ⚙️ `ovsx` not in deps/devDeps/lockfile. [.github/workflows/publish.yml:43](../.github/workflows/publish.yml#L43) `npx ovsx publish` live-downloads at publish time (vsce is pinned, ovsx isn't) → Open VSX publish can break. Fix: `npm i -D ovsx`.
 - [x] ⚙️ No CI on PR / push — added [ci.yml](../.github/workflows/ci.yml) on `pull_request` / `push` (main) running `npm ci && npm test && node esbuild.js`.
 
 ### Security — Extension hardening (P1)
 
 - [ ] 🔒 P1: `uploadImage` accepts any extension/filename — webview-controlled. Can overwrite `~/.bashrc`, `~/.command` files, etc. via malicious `.md` postMessage. [src/provider.ts:282-309](../src/provider.ts#L282). Fix: whitelist extensions (`png|jpg|jpeg|gif|webp|svg`) + content-hash filenames + size cap.
-
-### Security — Supply chain (P1)
-
-- [ ] 🔧 P1: Replace `diff2html` + transitive `@profoundlogic/hogan` (new fork created 2025-10-08) with `jsdiff`-based renderer in [webview/components/DiffView.tsx](../webview/components/DiffView.tsx). ~250 LoC. Removes 1 direct + 1 high-risk transitive dep.
 
 ### Refactoring — R1 High (low-effort, high-leverage)
 
@@ -49,6 +41,10 @@ Legend / notes preserved from the original sections:
 - [ ] 🧪 全 149 ケースが緑のまま動くまで linkedom の差分 (特に `DOMParser` の `<table>` 自動補完、`<p><img>` の wrap 挙動) を埋める。差分があれば test 側で吸収。
 - [ ] 🧪 `test/pipeline.ts` を削除。CLAUDE.md の "3 ファイル同期" 不変条件のセクションを "本番コードを直接テストする" に書き換え。
 - [ ] 🧪 `RoundTripOptions` に `settings?: BetterMarkdownSettings` / `baseUri?: string` / `docFolderPath?: string` を追加 (R1 で挙げた項目をここで吸収) → category N と画像相対パスを end-to-end で検証可能に。
+
+### Security — Supply chain (P1)
+
+- [ ] 🔧 P1: Replace `diff2html` + transitive `@profoundlogic/hogan` (new fork created 2025-10-08) with `jsdiff`-based renderer in [webview/components/DiffView.tsx](../webview/components/DiffView.tsx). ~250 LoC. Removes 1 direct + 1 high-risk transitive dep.
 
 ## Medium Priority
 
@@ -100,6 +96,7 @@ Legend / notes preserved from the original sections:
 #### Phase B — Settings schema unification (~3 日, Phase A 後)
 
 - [ ] 🎯 `zod` を依存に追加。`webview/settings-schema.ts` に **唯一の真実** として zod スキーマを書く:
+
   ```ts
   export const SettingsSchema = z.object({
     bullet: z.enum(["-", "*", "+"]).default("-").describe("Bullet list marker"),
@@ -108,6 +105,7 @@ Legend / notes preserved from the original sections:
   });
   export type BetterMarkdownSettings = z.infer<typeof SettingsSchema>;
   ```
+
 - [ ] 🎯 `DEFAULT_SETTINGS` を `SettingsSchema.parse({})` で派生させる (`.default()` の自動収集)。
 - [ ] 🎯 `SETTING_KEYS` を `Object.keys(SettingsSchema.shape)` で派生。
 - [ ] 🎯 `package.json` の `contributes.configuration.properties` を **ビルド時に生成**: `zod-to-json-schema` で JSON schema を出力 → `scripts/gen-package-json-config.ts` が `package.json` の該当ブロックを書き換え → `npm run build` の prebuild で実行 + git で diff チェック (CI で drift 検出)。
@@ -117,12 +115,14 @@ Legend / notes preserved from the original sections:
 #### Phase C — `normalizeMarkdown` plugin architecture (~1 週間, Phase A 後)
 
 - [ ] 🔧 `webview/markdown-normalizers/` ディレクトリを作り、各正規化を以下の形に切り出す:
+
   ```ts
   export interface Normalizer {
     name: keyof BetterMarkdownSettings;  // or null for always-on
     apply: (lines: string[], ctx: NormalizerContext) => string[];
   }
   ```
+
   `NormalizerContext` は `{ inCodeBlock: boolean; mathPlaceholders: Map<...>; settings }` を持ち、全プラグインで共有 → `inCodeBlock` の重複追跡を撲滅 (P1 `renumberOrderedLists` のバグの根本原因)。
 - [ ] 🔧 `normalizeMarkdown(md, settings)` を **`lines = md.split("\n")` 1 回 → 各 normalizer を順次適用 → 最後に join 1 回** の構造に。split/join は 18 回 → 2 回。
 - [ ] 🔧 既存の `compactLists`/`unescapeSpecialChars`/`stripAutolinks`/`unescapeBareUrls`/`replaceSafetyEntities`/`fixTaskLists`/`renumberOrderedLists`/`padTables`/`fixTableHeaders` を 1 プラグインずつ移植 → 各移植で test 緑を維持。
@@ -132,6 +132,7 @@ Legend / notes preserved from the original sections:
 #### Phase D — Typed message protocol (~3 日, Phase B 後)
 
 - [ ] 🎯 `src/messages.ts` (host + webview から import 可) に判別共用体を定義:
+
   ```ts
   export type HostToWebview =
     | { type: "init"; content: string; baseUri: string; ...settings: BetterMarkdownSettings }
@@ -147,6 +148,7 @@ Legend / notes preserved from the original sections:
     | { type: "openLink"; href: string }
     | ...;
   ```
+
 - [ ] 🎯 host 側に `handlers: { [K in WebviewToHost["type"]]: (msg: Extract<WebviewToHost, { type: K }>, ctx) => Promise<void> }` を持たせ、`onDidReceiveMessage` の中身を `handlers[msg.type]?.(msg, ctx)` 一行に。
 - [ ] 🎯 各ハンドラを `src/handlers/` 配下に 1 ファイル 1 ハンドラで切り出し (`handle-upload-image.ts`, `handle-open-link.ts` …)。`provider.ts` 405 行 → 100 行台。
 - [ ] 🎯 webview 側も `vscodeApi.postMessage` を `postMessage(msg: WebviewToHost)` のラッパーに置き換え → typo がコンパイルエラーに。
@@ -248,6 +250,7 @@ Legend / notes preserved from the original sections:
 ## Done
 
 - [x] 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ` ``` ` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.
+- [x] 🚩 🎨 **Remove "…" placeholder shown after folded headings.** When a heading is folded, [webview/styles/editor.css:141-146](../webview/styles/editor.css#L141) renders `.heading-with-toggle.is-folded::after { content: " …"; … }`, appending a grey ellipsis next to the heading text. The chevron (▶) already signals folded state — the ellipsis is redundant visual noise. Fix: remove the entire `.heading-with-toggle.is-folded::after` rule (lines 141-146) and the explanatory comment block above it. No other CSS/JS references the `::after`, so it's a clean delete. No round-trip impact (CSS only).
 - [x] 🐛 Embed `exit()` reads stale `node.attrs.url`. [webview/extensions/YouTubeEmbed.tsx:65-68](../webview/extensions/YouTubeEmbed.tsx#L65) and [GitHubEmbed.tsx:144-147](../webview/extensions/GitHubEmbed.tsx#L144) call `save()` (`updateAttributes`) then guard cursor placement on `node.attrs.url`, which hasn't flushed → caret left inside a freshly-created embed. Fix: guard on local `url.trim()`.
 - [x] 🚩 🐛 **Heading fold toggle: chevron + "…" placeholder don't update on unfold.** Clicking the chevron on an outer heading (e.g. `## High Priority` in `docs/TODO.md`) reveals the nested children (sub-heading + body show through) but the heading's own chevron stays `▶` instead of flipping to `▼`, and a residual `…` placeholder remains under it — so the heading visually still looks folded. Repro: open this file in the rich editor, fold `## High Priority`, then unfold.
   - Root cause (verified): toggle in [webview/extensions/HeadingFold.tsx:143-145](../webview/extensions/HeadingFold.tsx#L143) dispatches a meta-only transaction (`tr.setMeta(HEADING_FOLD_KEY, …)`, `docChanged === false`). Tiptap's `ReactNodeViewRenderer.update()` short-circuits when `node`, `decorations`, and `innerDecorations` are all referentially equal — which is exactly the case for a meta-only tr — so the `HeadingView` React component never re-renders. Its `isFolded = pluginState?.folded.has(index)` therefore reflects the previous state, leaving the chevron stale.
