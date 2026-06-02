@@ -12,10 +12,10 @@ Legend / notes preserved from the original sections:
 
 ### Feature
 
-- [ ] 🚧 🚩 🐛 **Rich editor doesn't pick up external `.md` changes.** <!-- branch: fix/rich-editor-external-change-refresh --> When the backing file is modified outside the webview (git pull, `/ship` auto-commits, another editor, format-on-save from a different tool, etc.), the open Rich editor tab keeps rendering the stale content until the file is manually closed and reopened. The native source editor auto-refreshes; the Rich editor should mirror that.
+- [ ] 🚧 🚩 🐛 **Rich editor doesn't pick up external `.md` changes.** When the backing file is modified outside the webview (git pull, `/ship` auto-commits, another editor, format-on-save from a different tool, etc.), the open Rich editor tab keeps rendering the stale content until the file is manually closed and reopened. The native source editor auto-refreshes; the Rich editor should mirror that.
   - Likely root cause: [src/provider.ts](../src/provider.ts) wires `onDidChangeTextDocument` to push edits to the webview, but external file changes that bypass VS Code's TextDocument (or arrive while the webview holds an in-memory copy) aren't re-broadcast. Possibly also missing a `vscode.workspace.createFileSystemWatcher` fallback for the `file:` path.
   - Fix sketch: on every `onDidChangeTextDocument` (incl. external-edit revisions) **and** on `webview.onDidChangeViewState` when the webview regains visibility, re-`postMessage` the latest `document.getText()`. Guard against the webview's own edit echoes (`pendingWebviewEdits`) so a normal keystroke round-trip doesn't trigger a spurious reload.
-- [ ] 🚧 🚩 ✨ **TOC panel: collapsed by default (or remember last state).** <!-- branch: feat/toc-default-collapsed --> Currently [webview/components/TableOfContents.tsx:37](../webview/components/TableOfContents.tsx#L37) initializes `useState(false)` for `collapsed`, so the sidebar is always open on every fresh editor open — there's no setting and no persistence. Desired: TOC should default to collapsed (panel hidden, expand button visible). Two paths: (a) add a `markdownStudio.tocDefaultCollapsed: boolean` setting wired through the usual 4 places (`package.json` `contributes.configuration`, `BetterMarkdownSettings`, `DEFAULT_SETTINGS`, `SETTING_KEYS` in [webview/settings.ts](../webview/settings.ts)) and read it as the `useState` initial; (b) persist the user's last collapsed state per-workspace via `vscodeApi.postMessage` → `globalState` (similar to `betterMarkdown.headingFolds`) so the panel remembers the last manual toggle. (a) is the literal ask; (b) is the more polite UX and worth considering as the primary fix.
+- [ ] 🚧 🚩 ✨ **TOC panel: collapsed by default (or remember last state).** Currently [webview/components/TableOfContents.tsx:37](../webview/components/TableOfContents.tsx#L37) initializes `useState(false)` for `collapsed`, so the sidebar is always open on every fresh editor open — there's no setting and no persistence. Desired: TOC should default to collapsed (panel hidden, expand button visible). Two paths: (a) add a `markdownStudio.tocDefaultCollapsed: boolean` setting wired through the usual 4 places (`package.json` `contributes.configuration`, `BetterMarkdownSettings`, `DEFAULT_SETTINGS`, `SETTING_KEYS` in [webview/settings.ts](../webview/settings.ts)) and read it as the `useState` initial; (b) persist the user's last collapsed state per-workspace via `vscodeApi.postMessage` → `globalState` (similar to `betterMarkdown.headingFolds`) so the panel remembers the last manual toggle. (a) is the literal ask; (b) is the more polite UX and worth considering as the primary fix.
 
 ### Bug / Code Review — P1 High
 
@@ -32,7 +32,6 @@ Legend / notes preserved from the original sections:
 
 ### Security — Supply chain (P1)
 
-- [ ] 🔧 P1: Replace `lucide-react@1.7.0` (v1 series freshly reset 2026-03, single maintainer) with inline SVGs in `webview/icons/`. ~25 icons across 9 files, ~150 LoC. Remove dep from `package.json`.
 - [ ] 🔧 P1: Replace `diff2html` + transitive `@profoundlogic/hogan` (new fork created 2025-10-08) with `jsdiff`-based renderer in [webview/components/DiffView.tsx](../webview/components/DiffView.tsx). ~250 LoC. Removes 1 direct + 1 high-risk transitive dep.
 
 ### Refactoring — R1 High (low-effort, high-leverage)
@@ -248,6 +247,7 @@ Legend / notes preserved from the original sections:
 - [ ] esc. key should highlight the entire line just like notion
 - [ ] make sure cursor does not vanish/gets autofocused after navigating inside/outside of katex _(partial)_ — `cbe8e70` covers `Ctrl+A select-all`; bidirectional click-in/out paths may still drop focus
 - [ ] ⚠️ Bullet points nested inside checkboxes — **要ブラウザ検証**: `TaskItem.configure({ nested: true })` is enabled at [webview/App.tsx:70](../webview/App.tsx#L70) and no failing round-trip test exists. Bug may already be fixed; verify in browser before keeping or closing.
+- [ ] 🔧 Replace `lucide-react@1.7.0` (v1 series freshly reset 2026-03, single maintainer) with inline SVGs in `webview/icons/`. ~25 icons across 9 files, ~150 LoC. Remove dep from `package.json`.
 
 ## Done
 
