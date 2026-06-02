@@ -13,7 +13,7 @@ Legend / notes preserved from the original sections:
 ### Bug / Code Review — P1 High
 
 - [ ] 🚧 🐛 Image-upload reply has no request-id or timeout. <!-- branch: fix/image-upload-request-id-timeout --> [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
-- [ ] ⚙️ `ovsx` not in deps/devDeps/lockfile. [.github/workflows/publish.yml:43](../.github/workflows/publish.yml#L43) `npx ovsx publish` live-downloads at publish time (vsce is pinned, ovsx isn't) → Open VSX publish can break. Fix: `npm i -D ovsx`.
+- [ ] 🚧 ⚙️ `ovsx` not in deps/devDeps/lockfile. <!-- branch: chore/add-ovsx-devdep --> [.github/workflows/publish.yml:43](../.github/workflows/publish.yml#L43) `npx ovsx publish` live-downloads at publish time (vsce is pinned, ovsx isn't) → Open VSX publish can break. Fix: `npm i -D ovsx`.
 - [x] ⚙️ No CI on PR / push — added [ci.yml](../.github/workflows/ci.yml) on `pull_request` / `push` (main) running `npm ci && npm test && node esbuild.js`.
 
 ### Security — Extension hardening (P1)
