@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { GripVertical, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { vscodeApi } from "../vscode-api";
 
 /** Scroll to the Nth heading element in the editor. */
 function scrollToHeadingByIndex(index: number) {
@@ -34,13 +35,36 @@ export function TableOfContents() {
   const [entries, setEntries] = useState<TocEntry[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
-  const [collapsed, setCollapsed] = useState(false);
+  // Default to collapsed on first open; the host hydrates the last
+  // persisted value via the `init` message effect below.
+  const [collapsed, setCollapsed] = useState(true);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const lastOpenWidth = useRef(DEFAULT_WIDTH);
   const dragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
   const wasCollapsed = useRef(false);
+
+  // Setter wrapper for user-initiated toggles — both updates local state
+  // and asks the host to persist the new value to globalState. The init
+  // hydration path uses plain setCollapsed to avoid echoing back.
+  const persistCollapsed = useCallback((next: boolean) => {
+    setCollapsed(next);
+    vscodeApi.postMessage({ type: "saveTocCollapsed", collapsed: next });
+  }, []);
+
+  // Hydrate from the host's last-known collapsed state. Attached on mount
+  // so we catch the `init` message that useEditorState's "ready" triggers.
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      const msg = e.data;
+      if (msg?.type === "init" && typeof msg.tocCollapsed === "boolean") {
+        setCollapsed(msg.tocCollapsed);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
 
   const updateToc = useCallback(() => {
     const container = document.querySelector(".editor-container");
@@ -95,16 +119,16 @@ export function TableOfContents() {
       if (wasCollapsed.current) {
         if (raw >= COLLAPSE_THRESHOLD) {
           const w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, raw));
-          setCollapsed(false);
+          persistCollapsed(false);
           setWidth(w);
           lastOpenWidth.current = w;
         }
       } else if (raw < COLLAPSE_THRESHOLD) {
-        setCollapsed(true);
+        persistCollapsed(true);
         stopDrag();
       } else {
         const w = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, raw));
-        setCollapsed(false);
+        // Width changed but collapsed state didn't — skip persisting.
         setWidth(w);
         lastOpenWidth.current = w;
       }
@@ -160,7 +184,7 @@ export function TableOfContents() {
             className="toc-expand-icon"
             onClick={(e) => {
               e.stopPropagation();
-              setCollapsed(false);
+              persistCollapsed(false);
               setWidth(Math.max(lastOpenWidth.current, DEFAULT_WIDTH));
             }}
           />
@@ -169,7 +193,7 @@ export function TableOfContents() {
             <ChevronRight
               size={12}
               className="toc-collapse-btn"
-              onClick={(e) => { e.stopPropagation(); setCollapsed(true); }}
+              onClick={(e) => { e.stopPropagation(); persistCollapsed(true); }}
             />
             <GripVertical size={12} className="toc-grip" />
           </>
