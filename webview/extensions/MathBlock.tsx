@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React from "react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
-import { NodeSelection } from "@tiptap/pm/state";
 import katex from "katex";
+import { useMathEditor } from "../hooks/useMathEditor";
 
 function MathBlockView({
   node,
@@ -11,57 +11,19 @@ function MathBlockView({
   editor,
   getPos,
 }: any) {
-  const [editing, setEditing] = useState(!node.attrs.latex);
-  const [latex, setLatex] = useState(node.attrs.latex);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Enter editing mode only when this node is the *exact* NodeSelection
-  // target (arrow-key nav into the atom). Tiptap also flags `selected=true`
-  // for any range selection that contains the node — including Ctrl+A's
-  // AllSelection — and auto-focusing the textarea there would steal focus
-  // and break select-all/copy. Clicks go through the explicit onClick below.
-  useEffect(() => {
-    if (!selected || editing) return;
-    const sel = editor?.state?.selection;
-    const pos = typeof getPos === "function" ? getPos() : null;
-    if (sel instanceof NodeSelection && pos !== null && sel.from === pos) {
-      setEditing(true);
-    }
-  }, [selected]);
-
-  useEffect(() => {
-    if (editing && textareaRef.current) {
-      // Delay focus so ProseMirror doesn't steal it back
-      requestAnimationFrame(() => textareaRef.current?.focus());
-    }
-  }, [editing]);
-
-  useEffect(() => {
-    setLatex(node.attrs.latex);
-  }, [node.attrs.latex]);
-
-  const save = useCallback(() => {
-    updateAttributes({ latex });
-    setEditing(false);
-  }, [latex, updateAttributes]);
-
-  // Exit: save and move the caret to `pos` in the outer editor so the
-  // cursor doesn't vanish when leaving the block via keyboard. `after:
-  // true` places the caret right after the node; false places it right
-  // before.
-  const exit = useCallback(
-    (after: boolean) => {
-      updateAttributes({ latex });
-      setEditing(false);
-      if (typeof getPos === "function" && editor) {
-        const base = getPos();
-        const pos = after ? base + node.nodeSize : base;
-        requestAnimationFrame(() => {
-          editor.chain().focus().setTextSelection(pos).run();
-        });
-      }
-    },
-    [latex, updateAttributes, editor, getPos, node],
+  const {
+    latex,
+    setLatex,
+    editing,
+    inputRef: textareaRef,
+    save,
+    exit,
+  } = useMathEditor<HTMLTextAreaElement>(
+    node,
+    updateAttributes,
+    editor,
+    getPos,
+    selected,
   );
 
   if (editing) {
