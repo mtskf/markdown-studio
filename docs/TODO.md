@@ -14,7 +14,7 @@ Legend / notes preserved from the original sections:
 
 ### Security — Extension hardening (P1)
 
-- [ ] 🔒 P1: `uploadImage` accepts any extension/filename — webview-controlled. Can overwrite `~/.bashrc`, `~/.command` files, etc. via malicious `.md` postMessage. [src/provider.ts:282-309](../src/provider.ts#L282). Fix: whitelist extensions (`png|jpg|jpeg|gif|webp|svg`) + content-hash filenames + size cap.
+- [ ] 🚧 🔒 P1: `uploadImage` accepts any extension/filename — webview-controlled. <!-- branch: fix/upload-image-whitelist-hash-cap --> Can overwrite `~/.bashrc`, `~/.command` files, etc. via malicious `.md` postMessage. [src/provider.ts:282-309](../src/provider.ts#L282). Fix: whitelist extensions (`png|jpg|jpeg|gif|webp|svg`) + content-hash filenames + size cap.
 
 ### Refactoring — R1 High (low-effort, high-leverage)
 
