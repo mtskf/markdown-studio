@@ -4,31 +4,23 @@
 
 Multi-agent review + adversarial verification. Ordered by priority. Each verified against the actual code; refuted false positives omitted. `(partial)` = real but narrower than first reported.
 
-### P0 — Critical (shipped security)
-
-- [ ] 🔒 Shell injection in dev-server `openLink` (RCE). [server/index.ts:365-377](../server/index.ts#L365) interpolates a WebSocket-supplied `href` into `` exec(`open "${href}"`) `` (also `start`/`xdg-open`). The server ships in the vsix (`dist/server.js`, spawned by "Open in Browser") and binds all interfaces on :3333 with no origin check → arbitrary command execution. Fix: `execFile("open", [href])` (no shell) + allowlist `http`/`https`/`mailto` schemes.
-
 ### P1 — High
 
-- [ ] 🔒 Shell injection in dev-server `toggleEditor`. [server/index.ts:402-407](../server/index.ts#L402) does `` exec(`code "${filePath}"`) ``; a file path containing shell metachars injects. Same flaw in the `requestGitDiff` handler (`git show HEAD:"..."` interpolation, ~line 386). Fix: `execFile("code", [filePath])` and `execFile` for git.
-- [ ] 🔒 Path traversal in dev-server `/doc/` image route. [server/index.ts:282-289](../server/index.ts#L282) joins `path.join(dir, file)` with no canonicalization (the upload route uses `path.basename`, this one doesn't) → reads files outside `dir`. Fix: `const r = path.resolve(dir, file); if (!r.startsWith(path.resolve(dir)+path.sep)) return 403;`.
 - [ ] 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ```` ``` ```` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.
 - [ ] 🐛 Embed `exit()` reads stale `node.attrs.url`. [webview/extensions/YouTubeEmbed.tsx:65-68](../webview/extensions/YouTubeEmbed.tsx#L65) and [GitHubEmbed.tsx:144-147](../webview/extensions/GitHubEmbed.tsx#L144) call `save()` (`updateAttributes`) then guard cursor placement on `node.attrs.url`, which hasn't flushed → caret left inside a freshly-created embed. Fix: guard on local `url.trim()`.
 - [ ] 🐛 Image-upload reply has no request-id or timeout. [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
-- [ ] ⚙️ `tsx` not in deps/devDeps/lockfile. [package.json:259](../package.json#L259) `npm test` / `serve` use `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
+- [ ] ⚙️ `tsx` not in deps/devDeps/lockfile. [package.json](../package.json) `npm test` uses `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
 - [ ] ⚙️ `ovsx` not in deps/devDeps/lockfile. [.github/workflows/publish.yml:43](../.github/workflows/publish.yml#L43) `npx ovsx publish` live-downloads at publish time (vsce is pinned, ovsx isn't) → Open VSX publish can break. Fix: `npm i -D ovsx`.
 - [ ] ⚙️ No CI on PR / push. Only [publish.yml](../.github/workflows/publish.yml) exists (tag-triggered); tests run only at release → a broken master is caught only when tagged. Fix: add `ci.yml` on `pull_request`/`push` running `npm ci && npm test && node esbuild.js`.
 
 ### P2 — Medium
 
-- [ ] 🐛 Fixed 1500 ms wait for the browser-preview server. [src/extension.ts:162-176](../src/extension.ts#L162) sleeps then opens the URL with no readiness probe and no `on("error")` handler → races on slow start / busy port, opens a dead address if the server exited. Fix: poll `localhost:3333` for readiness; bail/notify on spawn error or early exit.
 - [ ] 🐛 (partial) `openLink` opens arbitrary local files. [src/provider.ts:256-269](../src/provider.ts#L256) resolves a webview-supplied non-http `href` via `path.resolve(docDir, href)` and `vscode.open` with no confinement → can open files outside the workspace (bounded: opens in an editor, no exec). Fix: verify the resolved path stays within a workspace folder.
 - [ ] 🐛 (partial/latent) Math test mirror diverges from production on `<`/`>`/`&`. [test/pipeline.ts:93-98](../test/pipeline.ts#L93) captures entity-encoded span text; production [useVSCodeSync.ts:182](../webview/hooks/useVSCodeSync.ts#L182) reads DOM-decoded `data-latex`. Currently both round-trip the same, but a production regression on LaTeX with `<` would escape tests. Fix: source the placeholder from `data-latex` + decode entities in the test mirror.
 - [ ] 🐛 (partial) Naive single-backtick code-span scanning. [webview/markdown.config.ts:130-144](../webview/markdown.config.ts#L130) (and the same logic in `stripAutolinks`/`unescapeBareUrls`/`splitTableRow`) closes a code span at the next single backtick, mis-parsing double-backtick spans like `` ``foo`bar`` `` → unescaping leaks into protected code. Fix: match backtick runs by length (CommonMark).
 - [ ] 🐛 (partial) Overbroad `\[` unescape. [webview/markdown.config.ts:168](../webview/markdown.config.ts#L168) strips `\[` unconditionally; literal text `\[label](url)` may re-parse as a link on reload. Corruption loop unproven (remark may escape the `]`/`(` too). Fix: skip the unescape when a `\[...\](` link shape follows; add the verifying round-trip test below.
 - [ ] 🐛 Leaked panel listeners. [src/provider.ts:343,364](../src/provider.ts#L343) discards the `onDidChangeViewState` and the second `onDidDispose` disposables (low impact — panel-scoped — but inconsistent with the other two). Fix: store and dispose them.
 - [ ] ⚙️ `copyCSS()` not re-run in `--watch`. [esbuild.js:93-95](../esbuild.js#L93) copies CSS/fonts once; watch contexts never re-invoke it → stale `dist/editor.css` on style edits during dev. Fix: `build.onEnd(() => copyCSS())` plugin on the webview watch context.
-- [ ] ⚙️ `server/` never type-checked. [tsconfig.json:7](../tsconfig.json#L7) scopes `tsc` to `src/`; esbuild transpiles `server/index.ts` without type-checking. Fix: add `server/**` to a tsconfig + `tsc --noEmit` in CI.
 
 ### P3 — Low / cleanup
 
@@ -104,12 +96,6 @@ Additional findings from the focused security & supply-chain audit (`docs/securi
 - [ ] 🔒 P3: Set `retainContextWhenHidden: false` to avoid memory residue after webview close. [src/extension.ts:61](../src/extension.ts#L61), [src/diffPanel.ts:68](../src/diffPanel.ts#L68).
 - [ ] 🔒 P3: Add type/size validation to all `onDidReceiveMessage` handlers (cap base64 sizes; reject malformed payloads). [src/provider.ts:211-336](../src/provider.ts#L211).
 - [ ] 🔒 P3: Use `URL` constructor for host validation before `vscode.env.openExternal`. [src/extension.ts:178-180](../src/extension.ts#L178), [src/provider.ts:258-259](../src/provider.ts#L258).
-
-### Server-side additions (only if openInBrowser kept)
-
-- [ ] 🔒 P1: Arbitrary write via `/upload/<base64dir>/<filename>` — `dir` is base64url, not confined. Can write to `/etc/cron.d/`, `~/.ssh/authorized_keys`, etc. [server/index.ts:247-279](../server/index.ts#L247). Fix: confine `dir` to allowlist of WS-known directories.
-- [ ] 🔒 P1: WS `saveSettings` writes any payload to `~/.better-markdown-settings.json` with no validation, then broadcasts. [server/index.ts:353-362](../server/index.ts#L353). Fix: `SETTING_KEYS` whitelist + type check.
-- [ ] 🔒 P2: Bind server to `127.0.0.1` only (not all interfaces). Require WS `origin` header check (CSWSH defense). Add start-time random token in URL. [server/index.ts:419](../server/index.ts#L419), [:302-312](../server/index.ts#L302).
 
 ### Supply chain
 
