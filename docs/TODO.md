@@ -12,7 +12,6 @@ Legend / notes preserved from the original sections:
 
 ### Bug / Code Review — P1 High
 
-- [ ] 🚧 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ` ``` ` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.
 - [ ] 🚧 ⚙️ `tsx` not in deps/devDeps/lockfile. <!-- branch: chore/add-tsx-devdep --> [package.json](../package.json) `npm test` uses `npx tsx`; CI runs `npm ci` then `npm test`, relying on a live npx download → publish/CI fragility. Fix: `npm i -D tsx`.
 - [ ] ⚙️ `ovsx` not in deps/devDeps/lockfile. [.github/workflows/publish.yml:43](../.github/workflows/publish.yml#L43) `npx ovsx publish` live-downloads at publish time (vsce is pinned, ovsx isn't) → Open VSX publish can break. Fix: `npm i -D ovsx`.
 - [x] ⚙️ No CI on PR / push — added [ci.yml](../.github/workflows/ci.yml) on `pull_request` / `push` (main) running `npm ci && npm test && node esbuild.js`.
@@ -197,6 +196,7 @@ Legend / notes preserved from the original sections:
 ### Bug / Code Review — P3 Low / cleanup
 
 - [ ] ⚡ `TableControls` triple-subscribes. [webview/components/TableControls.tsx:82-84](../webview/components/TableControls.tsx#L82) registers `selectionUpdate`+`update`+`transaction`; `transaction` is a superset → redundant reflow while editing in a table. Fix: keep only `transaction`.
+- [ ] 🧹 `blankLineGap` is a dead variable in `renumberOrderedLists`. [webview/markdown.config.ts:249](../webview/markdown.config.ts#L249) is written in four places (initialized, reset on fence, reset on numbered item, reset on non-list break, and set true on blank-in-list) but never read to influence a branch. Pre-dates the 2.3.10 fence-guard fix; left untouched to keep that PR scope clean. Fix: delete the variable and its writers.
 
 ### Security — Extension hardening (P3)
 
@@ -249,6 +249,7 @@ Legend / notes preserved from the original sections:
 ## Done
 
 - [x] 🐛 Image-upload reply has no request-id or timeout. [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
+- [x] 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ` ``` ` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.
 - [x] 🚩 🎨 **Remove "…" placeholder shown after folded headings.** When a heading is folded, [webview/styles/editor.css:141-146](../webview/styles/editor.css#L141) renders `.heading-with-toggle.is-folded::after { content: " …"; … }`, appending a grey ellipsis next to the heading text. The chevron (▶) already signals folded state — the ellipsis is redundant visual noise. Fix: remove the entire `.heading-with-toggle.is-folded::after` rule (lines 141-146) and the explanatory comment block above it. No other CSS/JS references the `::after`, so it's a clean delete. No round-trip impact (CSS only).
 - [x] 🐛 Embed `exit()` reads stale `node.attrs.url`. [webview/extensions/YouTubeEmbed.tsx:65-68](../webview/extensions/YouTubeEmbed.tsx#L65) and [GitHubEmbed.tsx:144-147](../webview/extensions/GitHubEmbed.tsx#L144) call `save()` (`updateAttributes`) then guard cursor placement on `node.attrs.url`, which hasn't flushed → caret left inside a freshly-created embed. Fix: guard on local `url.trim()`.
 - [x] 🚩 🐛 **Heading fold toggle: chevron + "…" placeholder don't update on unfold.** Clicking the chevron on an outer heading (e.g. `## High Priority` in `docs/TODO.md`) reveals the nested children (sub-heading + body show through) but the heading's own chevron stays `▶` instead of flipping to `▼`, and a residual `…` placeholder remains under it — so the heading visually still looks folded. Repro: open this file in the rich editor, fold `## High Priority`, then unfold.
