@@ -8,6 +8,7 @@ import {
 } from "./useVSCodeSync";
 import { extractFrontmatter, prependFrontmatter } from "../frontmatter";
 import { mergeSettings, type BetterMarkdownSettings } from "../settings";
+import { setInitialHeadingFolds } from "../extensions/HeadingFold";
 import { vscodeApi } from "../vscode-api";
 
 function mimeToExt(mime: string): string {
@@ -121,6 +122,13 @@ export function useEditorState({
             frontmatterRef.current = frontmatter;
             const html = await markdownToHtml(noFm, baseUri.current);
             editor.commands.setContent(html);
+            // Restore persisted heading-fold state for this file. Must
+            // happen after setContent so the heading nodes exist in the
+            // document; the plugin then resolves indices against the new
+            // doc.
+            if (Array.isArray(msg.headingFolds)) {
+              setInitialHeadingFolds(editor, msg.headingFolds as number[]);
+            }
             // Place the caret: restore the last-known position for this
             // file if we have one, otherwise drop it inside the first
             // heading (usually the title). Falls back to doc start.
