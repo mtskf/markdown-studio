@@ -431,6 +431,30 @@ async function run() {
     "1. first\n2. second\n3. third\n"
   );
 
+  // Fenced code block content must NOT be renumbered — the numbers are literal
+  // code, not list items.
+  eq(
+    "renumber: preserves numbered lines inside fenced code block",
+    normalizeMarkdown("```\n1. foo\n1. bar\n1. baz\n```\n"),
+    "```\n1. foo\n1. bar\n1. baz\n```\n"
+  );
+
+  // Math block placeholder (```btrmk-math-block) shares the same ``` fence —
+  // numbered lines inside it must also be preserved.
+  eq(
+    "renumber: preserves numbered lines inside btrmk-math-block fence",
+    normalizeMarkdown("```btrmk-math-block\n1. \\alpha\n1. \\beta\n```\n"),
+    "```btrmk-math-block\n1. \\alpha\n1. \\beta\n```\n"
+  );
+
+  // A real ordered list AFTER a code block (containing numbered lines) must
+  // still start renumbering from 1 — the fence guard shouldn't leak state.
+  eq(
+    "renumber: real list after code block still renumbers from 1",
+    normalizeMarkdown("```\n1. code-a\n1. code-b\n```\n\n1. real\n1. real two\n"),
+    "```\n1. code-a\n1. code-b\n```\n\n1. real\n2. real two\n"
+  );
+
   eq(
     "orphaned list marker merging",
     normalizeMarkdown("- \n\n  text here\n"),
