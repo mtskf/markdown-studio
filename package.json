@@ -159,40 +159,76 @@
         },
         "markdownStudio.bullet": {
           "type": "string",
-          "enum": ["-", "*", "+"],
-          "enumDescriptions": ["dash", "star", "plus"],
+          "enum": [
+            "-",
+            "*",
+            "+"
+          ],
+          "enumDescriptions": [
+            "dash",
+            "star",
+            "plus"
+          ],
           "default": "-",
           "order": 10,
           "markdownDescription": "Bullet character for unordered lists when serializing back to markdown."
         },
         "markdownStudio.emphasis": {
           "type": "string",
-          "enum": ["_", "*"],
-          "enumDescriptions": ["_italic_", "*italic*"],
+          "enum": [
+            "_",
+            "*"
+          ],
+          "enumDescriptions": [
+            "_italic_",
+            "*italic*"
+          ],
           "default": "_",
           "order": 11,
           "markdownDescription": "Emphasis (italic) marker."
         },
         "markdownStudio.strong": {
           "type": "string",
-          "enum": ["**", "__"],
-          "enumDescriptions": ["**bold**", "__bold__"],
+          "enum": [
+            "**",
+            "__"
+          ],
+          "enumDescriptions": [
+            "**bold**",
+            "__bold__"
+          ],
           "default": "**",
           "order": 12,
           "markdownDescription": "Strong (bold) marker."
         },
         "markdownStudio.rule": {
           "type": "string",
-          "enum": ["-", "*", "_"],
-          "enumDescriptions": ["---", "***", "___"],
+          "enum": [
+            "-",
+            "*",
+            "_"
+          ],
+          "enumDescriptions": [
+            "---",
+            "***",
+            "___"
+          ],
           "default": "-",
           "order": 13,
           "markdownDescription": "Horizontal-rule character. Rendered as three of whichever you pick."
         },
         "markdownStudio.listItemIndent": {
           "type": "string",
-          "enum": ["one", "tab", "mixed"],
-          "enumDescriptions": ["1 space", "tab", "mixed"],
+          "enum": [
+            "one",
+            "tab",
+            "mixed"
+          ],
+          "enumDescriptions": [
+            "1 space",
+            "tab",
+            "mixed"
+          ],
           "default": "one",
           "order": 14,
           "markdownDescription": "Continuation indent for list items."
@@ -211,16 +247,28 @@
         },
         "markdownStudio.diffMode": {
           "type": "string",
-          "enum": ["source", "rendered"],
-          "enumDescriptions": ["Source (line diff)", "Rendered (HTML diff)"],
+          "enum": [
+            "source",
+            "rendered"
+          ],
+          "enumDescriptions": [
+            "Source (line diff)",
+            "Rendered (HTML diff)"
+          ],
           "default": "rendered",
           "order": 40,
           "markdownDescription": "Default view for the rich diff panel."
         },
         "markdownStudio.diffLayout": {
           "type": "string",
-          "enum": ["unified", "side-by-side"],
-          "enumDescriptions": ["Unified", "Side-by-side"],
+          "enum": [
+            "unified",
+            "side-by-side"
+          ],
+          "enumDescriptions": [
+            "Unified",
+            "Side-by-side"
+          ],
           "default": "side-by-side",
           "order": 41,
           "markdownDescription": "Layout for the source (line-level) diff toggle."
@@ -281,6 +329,7 @@
     "@types/vscode": "^1.80.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.20.0",
+    "ovsx": "^1.0.0",
     "tsx": "^4.22.4",
     "typescript": "^5.4.0"
   },

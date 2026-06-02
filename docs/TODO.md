@@ -13,7 +13,6 @@ Legend / notes preserved from the original sections:
 ### Bug / Code Review — P1 High
 
 - [ ] 🚧 🐛 Image-upload reply has no request-id or timeout. <!-- branch: fix/image-upload-request-id-timeout --> [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
-- [ ] 🚧 ⚙️ `ovsx` not in deps/devDeps/lockfile. <!-- branch: chore/add-ovsx-devdep --> [.github/workflows/publish.yml:43](../.github/workflows/publish.yml#L43) `npx ovsx publish` live-downloads at publish time (vsce is pinned, ovsx isn't) → Open VSX publish can break. Fix: `npm i -D ovsx`.
 - [x] ⚙️ No CI on PR / push — added [ci.yml](../.github/workflows/ci.yml) on `pull_request` / `push` (main) running `npm ci && npm test && node esbuild.js`.
 
 ### Security — Extension hardening (P1)
@@ -248,6 +247,7 @@ Legend / notes preserved from the original sections:
 
 ## Done
 
+- [x] ⚙️ `ovsx` not in deps/devDeps/lockfile. [.github/workflows/publish.yml:43](../.github/workflows/publish.yml#L43) `npx ovsx publish` live-downloads at publish time (vsce is pinned, ovsx isn't) → Open VSX publish can break. Fix: `npm i -D ovsx`.
 - [x] 🐛 Image-upload reply has no request-id or timeout. [webview/hooks/useEditorState.ts:86-100](../webview/hooks/useEditorState.ts#L86) matches `imageUploaded` by type only; concurrent multi-image drop resolves every pending promise with the first reply's `src` (wrong image), and a missing reply leaks the listener forever. Fix: correlate by unique request id + add a timeout that rejects.
 - [x] 🐛 `renumberOrderedLists` corrupts fenced code / math-block content. [webview/markdown.config.ts:239-266](../webview/markdown.config.ts#L239) has no `inCodeBlock` guard (every sibling normalizer does), and it runs before math placeholders are restored → numbered lines inside ` ``` ` blocks or `btrmk-math-block` fences get renumbered. Enabled by default. Fix: add the same fence-toggle guard. Add a category-N/code-block test.
 - [x] 🚩 🎨 **Remove "…" placeholder shown after folded headings.** When a heading is folded, [webview/styles/editor.css:141-146](../webview/styles/editor.css#L141) renders `.heading-with-toggle.is-folded::after { content: " …"; … }`, appending a grey ellipsis next to the heading text. The chevron (▶) already signals folded state — the ellipsis is redundant visual noise. Fix: remove the entire `.heading-with-toggle.is-folded::after` rule (lines 141-146) and the explanatory comment block above it. No other CSS/JS references the `::after`, so it's a clean delete. No round-trip impact (CSS only).
