@@ -21,6 +21,22 @@
 
 修正: 個別行を削除し `docs/**` を除外に追加。これで docs 配下の内部資料（ARCHITECTURE/WORKFLOW/LEARNING/SPEC/TODO/plans/security-audit）が一括で vsix から外れる。
 
+## Custom Editors
+
+### 2026-06-02: `customEditors priority:"default"` claims both panes of a diff
+
+問題: `package.json` の `contributes.customEditors` で `*.md` を `priority: "default"` にすると、SCM Changes ビューの diff (`TabInputTextDiff`) でも両側 (original=`git:` / modified=`file:`) が rich editor (webview) で開き、line diff が隠れる。
+
+決定: `priority` は下げない（通常の `.md` 開きで rich editor を default にする要件は維持）。代わりに `onDidChangeTabs` で `TabInputTextDiff` を検出し、片側でも `.md` なら `vscode.commands.executeCommand("vscode.diff", left, right, title, { override: "default" })` で開き直す。
+
+理由:
+
+- `override: "default"` は内部コマンド `_workbench.diff` の `IResourceDiffEditorInput.options` に渡される（公式 `TextDocumentShowOptions` 型には載っていないが内部コマンドは受け取る）。これで editor resolver が custom editor をスキップし native text diff editor で確実に描画する。
+- reopen はそれ自体が `onDidChangeTabs.opened` を発火するため、URI ペアキーの `Set` で一度だけ consume するガードが必須。これを忘れると無限ループ。
+- 既存の「非 `file:` スキームの `TabInputCustom` を閉じる」safety net も残す。SCM 経由は新ロジックで吸収されるが、コマンドパレット等から直接 `git:` URI を開くケースが残るため。
+
+ユーザー向け escape hatch: `workbench.editorAssociations` に `{git,vscode-scm}:/**/*.md` を `"default"` でマッピングすればプログラム的処理なしで同じ効果が得られる。CHANGELOG にも記載。
+
 ## Claude Workflow
 
 ### 2026-06-02: settings.json の machine 固有設定は settings.local.json へ
